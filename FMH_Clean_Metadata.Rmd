@@ -1,0 +1,14 @@
+---
+title: "FMH_Clean_Metadata"
+author: "Muscettola"
+date: "2025-12-07"
+output: html_document
+
+#When data is exported from FFI, the metadata for each read is included as rows in the dataframe. This script cleans the metadata from the exported data to then use for subsequent data analyses. This code was adapted from GRCA-Fire-Ecology "Clean_Metadata.R" 
+---
+
+```{r}
+
+```
+
+
