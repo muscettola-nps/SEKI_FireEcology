@@ -1,0 +1,531 @@
+---
+title: "CedarWestRxDataAnalysis"
+author: "Muscettola"
+date: "2025-12-07"
+output: html_document
+---
+
+#R setup
+
+```{r}
+#install packages
+#install.packages(c("ggplot2", "dplyr", "tidyverse"))
+
+
+#load libraries
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+
+#set working directory
+path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/Raw/"
+path_out <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/R_working/"
+
+#set working directory
+path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/"
+
+#load data 
+FWD_raw <- read.csv(paste0(path_data, "Surface Fuels - Fine_XPT.csv"))
+CWD_raw <-read.csv(paste0(path_data, "Surface Fuels - 1000Hr_XPT.csv"))
+DuffLitt_raw <- read.csv(paste0(path_data, "Surface Fuels - Duff_Litter_XPT.csv"))
+Trees_raw <-read.csv(paste0(path_data, "Trees - Individuals (metric)_XPT.csv"))
+Seedlings_raw <- read.csv(paste0(path_data, "Density - Quadrats (metric)_XPT.csv"))
+PostBurnSev_raw <- read.csv(paste0(path_data, "Post Burn Severity_XPT.csv"))
+```
+
+#Data Tidying
+Note: Only do once. After the data is tidied, the code saves the tidy data as a csv so it can be quickly referenced in the future.
+##12/7/2025 IM Consider removing non-pertinent columns (i.e. trees remove CrFuBHt:CKR)
+
+###FWD
+```{r}
+#clean up dataframe 
+
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+FWD <- FWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+FWD$Visited[FWD$Visited==""] <- NA
+
+# Filter for only data
+FWD_data <- FWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+FWD_header <- FWD %>%
+  filter(!is.na(Visited))
+
+rm(FWD, FWD_raw)
+
+```
+
+### CWD
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+CWD <- CWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+CWD$Visited[CWD$Visited==""] <- NA
+
+# Filter for only data
+CWD_data <- CWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+CWD_header <- CWD %>%
+  filter(!is.na(Visited))
+
+rm(CWD, CWD_raw)
+```
+### DuffLitt
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+DuffLitt <- DuffLitt_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+DuffLitt$Visited[DuffLitt$Visited==""] <- NA
+
+# Filter for only data
+DuffLitt_data <- DuffLitt %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+DuffLitt_header <- DuffLitt %>%
+  filter(!is.na(Visited))
+
+rm(DuffLitt, DuffLitt_raw)
+```
+### PostBurnSev
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+PostBurnSev <- PostBurnSev_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+PostBurnSev$Visited[PostBurnSev$Visited==""] <- NA
+
+# Filter for only data
+PostBurnSev_data <- PostBurnSev %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+PostBurnSev_header <- PostBurnSev %>%
+  filter(!is.na(Visited))
+
+rm(PostBurnSev, PostBurnSev_raw)
+```
+### Seedlings 
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+Seedlings <- Seedlings_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+Seedlings$Visited[Seedlings$Visited==""] <- NA
+
+# Filter for only data
+Seedlings_data <- Seedlings %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+Seedlings_header <- Seedlings %>%
+  filter(!is.na(Visited))
+
+#good! looking at the header, the sampling area for all of the reads is 250m2
+
+rm(Seedlings, Seedlings_raw)
+```
+
+### Trees 
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+Trees <- Trees_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) %>%
+  # set column types
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+
+#Ensure blanks in visited column are NA
+Trees$Visited[Trees$Visited==""] <- NA
+
+# Filter for only data
+Trees_data <- Trees %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+Trees_header <- Trees %>%
+  filter(!is.na(Visited))
+
+rm(Trees, Trees_raw)
+```
+
+### Save tidy data as csv's 
+```{r}
+#save tidy data as csv
+write.csv(FWD_data, paste0(path_out, "CGWestRx_FWD_data.csv"))
+write.csv(FWD_header, paste0(path_out, "CGWestRx_FWD_header.csv"))
+write.csv(CWD_data, paste0(path_out, "CGWestRx_CWD_data.csv"))
+write.csv(CWD_header, paste0(path_out, "CGWestRx_CWD_header.csv"))
+write.csv(DuffLitt_data, paste0(path_out, "CGWestRx_DuffLitt_data.csv"))
+write.csv(DuffLitt_header, paste0(path_out, "CGWestRx_DuffLitt_header.csv"))
+write.csv(PostBurnSev_data, paste0(path_out, "CGWestRx_PostBurnSev_data.csv"))
+write.csv(PostBurnSev_header, paste0(path_out, "CGWestRx_PostBurnSev_header.csv"))
+write.csv(Seedlings_data, paste0(path_out, "CGWestRx_Seedlings_data.csv"))
+write.csv(Seedlings_header, paste0(path_out, "CGWestRx_Seedlings_header.csv"))
+write.csv(Trees_data, paste0(path_out, "CGWestRx_Trees_data.csv"))
+write.csv(Trees_header, paste0(path_out, "CGWestRx_Trees_header.csv"))
+```
+
+# Calculating Fuel Loading
+12/7/2025 IM - waiting for Nick Kichas for code. Rfuels is not downloading due to newer version of R than allowed. 
+## Using Rfuels
+
+###Rfuels setup
+```{r}
+#install Rfuels package
+install.packages("devtools")
+library(devtools)
+devtools::install_github('danfosterfire/Rfuels')
+install.packages("Rfuels")
+install.packages("Rtools")
+
+#load Rfuels package
+library(Rfuels)
+```
+
+###Reformat
+
+
+# Fuels Data Visualizations
+
+## FWD
+
+```{r}
+#summarize the FWD data by Monitoring Status for all size classes of fuel. This summarizes the minimum, maximum, mean, standard deviation, and standard error for One, Ten, and Hundred hour fuel classes.
+FWD_summ <- FWD_data %>%
+  group_by(Monitoring.Status) %>%
+  reframe(n=n(),
+            `Min.`=c(min(OneHr),min(TenHr), min(HunHr)),
+            `Max.`=c(max(OneHr),max(TenHr),max(HunHr)),
+            `Mean`=c(mean(OneHr),mean(TenHr),mean(HunHr)),
+            `SD`=c(sd(OneHr),sd(TenHr),sd(HunHr)),
+            `SE`=c(sd(OneHr)/sqrt(n),sd(TenHr)/sqrt(n),sd(HunHr)/sqrt(n)),
+            'Size_class'=c("One", "Ten", "Hun"))
+```
+
+# Seedlings Data Visualizations
+
+Calculate trees/ac of seedlings
+```{r}
+# Calculate trees/ac of seedlings knowing that the sampling area was 250m2
+#250m2 = 0.0612 ac; 250m2 = 0.025ha
+#total area for all 4 plots is 1000m2 (4*250m2)
+
+Seedlings_data <- Seedlings_data %>%
+  mutate(TPHa = Count/250*10000, Height_ft = Height * 3.28084, TPA = Count/250*4046.8564) %>%
+  mutate(Height = as.factor(Height), Height_ft = as.factor(Height_ft))
+
+Density_all_m <- Seedlings_data %>%
+  group_by(Monitoring.Status, Height, Status) %>%
+  summarise(Count = sum(Count),
+            TPHa = Count/1000*10000) 
+#In order to graph by height and status in the same graph we need to create a merged monitoring and live/dead column
+#there are no dead seedlings pre burn so let's add a row that has 0 for the TPHa for Dead Pre03
+temp <- tibble(Monitoring.Status = as.factor("Pre03"), Height = as.factor("0.15"), Status = "D", Count = 0, TPHa = 0, MonStat = as.factor("Pre03D"))
+Density_all_m <- Density_all_m %>%
+  mutate(MonStat = paste0(Monitoring.Status, Status)) %>%
+  bind_rows(temp) %>%
+  mutate(MonStat = factor(MonStat, c("Pre03L", "Pre03D", "Post03L", "Post03D")))
+
+
+Density_all_ft <- Seedlings_data %>%
+  group_by(Monitoring.Status, Height_ft) %>%
+  summarise(Count = sum(Count),
+            TPA = Count/1000*4046.8564)
+#it looks like something weird happened in the counts for Re01Year02 and Re01Year05; very high counts for seedlings <0.15m
+```
+
+### Plot Seedling density by size class
+```{r}
+#metric
+a <- ggplot(Density_all_m, aes(x=Monitoring.Status, y=TPHa, fill=Height)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  labs(title = "Seedlings per Ha by Size Class", x = "Monitoring Status", y = "Seedlings/ha")
+a
+
+#now let's look only at the most recent burn
+b <- ggplot(Density_all_m[36:48, ], aes(x=Monitoring.Status, y=TPHa, fill=Height)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  labs(title = "Pre= and Post- Cedar West Rx: Seedlings per Ha by Size Class", x = "Monitoring Status", y = "Seedlings/ha")
+b
+
+#now looking only at the most recent burn, let's include the status of the seedlings (live or dead)
+c <- ggplot(Density_all_m[49:66, ], aes(x=MonStat, y=TPHa, fill=Height)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  labs(title = "Pre- and Post- Cedar West Rx: Seedlings per Ha by Size Class", x = "Monitoring Status Live/Dead", y = "Seedlings/ha") + geom_vline(xintercept = 2.5, linetype="dashed", color = "red", linewidth = 0.5)
+c
+```
+
+###Plot Seedling size classes by species
+
+make summary dataframes for bargraphs
+```{r}
+Density_sp_m <- Seedlings_data %>%
+  group_by(Monitoring.Status, Height, Status, Species.Symbol) %>%
+  summarise(Count = sum(Count),
+            TPHa = Count/1000*10000) 
+
+Density_all_ft <- Seedlings_data %>%
+  group_by(Monitoring.Status, Height_ft, Status, Species.Symbol) %>%
+  summarise(Count = sum(Count),
+            TPA = Count/1000*4046.8564)
+#it looks like something weird happened in the counts for Re01Year02 and Re01Year05; very high counts for seedlings <0.15m
+=======
+PostBurnSev_raw <- read.csv(paste0(path_data, "Post Burn Severity_XPT.csv"))
+>>>>>>> feb29b897111fa709b6659a8362d27a712b06855
+```
+
+#Data Tidying
+#12/7/2025 IM Consider removing non-pertinent columns (i.e. trees remove CrFuBHt:CKR)
+
+###FWD
+```{r}
+#clean up dataframe 
+
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+FWD <- FWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+FWD$Visited[FWD$Visited==""] <- NA
+
+# Filter for only data
+FWD_data <- FWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+FWD_header <- FWD %>%
+  filter(!is.na(Visited))
+
+rm(FWD, FWD_raw)
+```
+
+### CWD
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+CWD <- CWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+CWD$Visited[CWD$Visited==""] <- NA
+
+# Filter for only data
+CWD_data <- CWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+CWD_header <- CWD %>%
+  filter(!is.na(Visited))
+
+rm(CWD, CWD_raw)
+```
+### DuffLitt
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+DuffLitt <- DuffLitt_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+DuffLitt$Visited[DuffLitt$Visited==""] <- NA
+
+# Filter for only data
+DuffLitt_data <- DuffLitt %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+DuffLitt_header <- DuffLitt %>%
+  filter(!is.na(Visited))
+
+rm(DuffLitt, DuffLitt_raw)
+```
+### PostBurnSev
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+PostBurnSev <- PostBurnSev_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+PostBurnSev$Visited[PostBurnSev$Visited==""] <- NA
+
+# Filter for only data
+PostBurnSev_data <- PostBurnSev %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+PostBurnSev_header <- PostBurnSev %>%
+  filter(!is.na(Visited))
+
+rm(PostBurnSev, PostBurnSev_raw)
+```
+### Trees 
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+Trees <- Trees_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+Trees$Visited[Trees$Visited==""] <- NA
+
+# Filter for only data
+Trees_data <- Trees %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+Trees_header <- Trees %>%
+  filter(!is.na(Visited))
+
+rm(Trees, Trees_raw)
+```
+
+```{r}
+#dataframe of only Pre03 and Post03
+seedlings_prepost03 <- filter(Seedlings_data, Monitoring.Status == "Pre03" | Monitoring.Status == "Post03")
+Density_prepost03_m <- filter(Density_sp_m, Monitoring.Status=="Pre03" | Monitoring.Status == "Post03") 
+
+#looking only at the most recent burn, let's include the status of the seedlings (live or dead)
+
+#boxplot
+d <- ggplot(Density_prepost03_m, aes(x=Monitoring.Status, y=TPHa, fill=Height)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Species.Symbol) +
+  theme_bw() +
+  labs(title = "Pre- and Post- Cedar West Rx: Seedlings per Ha by Size Class and Species", x = "Monitoring Status", y = "Seedlings/ha") + geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5)
+d
+
+
+```
+
+
+Size  Class density analysis
+```{r}
+#plot mean density for size class each year and total
+ggplot(Seedlings_density, aes(x=Monitoring.Status, y=density_mean))
+```
+
+
+
