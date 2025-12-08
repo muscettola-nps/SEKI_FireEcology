@@ -5,9 +5,172 @@ date: "2025-12-07"
 output: html_document
 ---
 
+#R setup
+
 ```{r}
 #install packages
-install.packages(c("ggplot2", "dplyr", "tidyverse"))
+#install.packages(c("ggplot2", "dplyr", "tidyverse"))
+
+#load libraries
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+
+#set working directory
+path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/"
+
+#load data 
+FWD_raw <- read.csv(paste0(path_data, "Surface Fuels - Fine_XPT.csv"))
+CWD_raw <-read.csv(paste0(path_data, "Surface Fuels - 1000Hr_XPT.csv"))
+DuffLitt_raw <- read.csv(paste0(path_data, "Surface Fuels - Duff_Litter_XPT.csv"))
+Trees_raw <-read.csv(paste0(path_data, "Trees - Individuals (metric)_XPT.csv"))
+PostBurnSev_raw <- read.csv(paste0(path_data, "Post Burn Severity_XPT.csv"))
 ```
 
+#Data Tidying
+#12/7/2025 IM Consider removing non-pertinent columns (i.e. trees remove CrFuBHt:CKR)
+
+###FWD
+```{r}
+#clean up dataframe 
+
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+FWD <- FWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+FWD$Visited[FWD$Visited==""] <- NA
+
+# Filter for only data
+FWD_data <- FWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+FWD_header <- FWD %>%
+  filter(!is.na(Visited))
+
+rm(FWD, FWD_raw)
+```
+
+### CWD
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+CWD <- CWD_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+CWD$Visited[CWD$Visited==""] <- NA
+
+# Filter for only data
+CWD_data <- CWD %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+CWD_header <- CWD %>%
+  filter(!is.na(Visited))
+
+rm(CWD, CWD_raw)
+```
+### DuffLitt
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+DuffLitt <- DuffLitt_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+DuffLitt$Visited[DuffLitt$Visited==""] <- NA
+
+# Filter for only data
+DuffLitt_data <- DuffLitt %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+DuffLitt_header <- DuffLitt %>%
+  filter(!is.na(Visited))
+
+rm(DuffLitt, DuffLitt_raw)
+```
+### PostBurnSev
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+PostBurnSev <- PostBurnSev_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+PostBurnSev$Visited[PostBurnSev$Visited==""] <- NA
+
+# Filter for only data
+PostBurnSev_data <- PostBurnSev %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+PostBurnSev_header <- PostBurnSev %>%
+  filter(!is.na(Visited))
+
+rm(PostBurnSev, PostBurnSev_raw)
+```
+### Trees 
+```{r}
+#clean up date, extract year of the visit, separate MacroPlot.Name into Monitoring Type and Plot Number
+Trees <- Trees_raw %>%
+  #fix the naming convention of Cedar Plot 1
+  mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
+  #Separate Date column into Date and Time columns
+  separate(Date, sep = " ", into = c("Date", "Time")) %>%
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
+  select(!c("Month", "Day")) %>%
+  # Separate MacroPlot.Name to get Monitoring type
+  separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
+  # Remove relic X column
+  select(!X) 
+
+#Ensure blanks in visited column are NA
+Trees$Visited[Trees$Visited==""] <- NA
+
+# Filter for only data
+Trees_data <- Trees %>%
+  filter(is.na(Visited))
+
+#Filter for only headers
+Trees_header <- Trees %>%
+  filter(!is.na(Visited))
+
+rm(Trees, Trees_raw)
+```
 
