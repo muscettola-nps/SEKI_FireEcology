@@ -510,8 +510,29 @@ t6
 
 ## Burn Metrics
 
-### Scorch
+Here we need to use data from the individual trees (rather than summaries used above). First let's extract only the Pre03 and Post03 trees from the original trees dataset (Trees_data)
 ```{r}
+prepost_indiv_trees <- filter(Trees_data, Monitoring.Status == "Pre03" | Monitoring.Status == "Post03")
+```
+
+### Plot Scorch
+```{r}
+#Scorch Height
+## by plot 
+s1 <- ggplot(prepost_indiv_trees, aes(x=Plot, y=ScorchHt)) + 
+  geom_boxplot() +
+  theme_bw() +
+  labs(x="Plot Number", y = "Scorch Height (m)", title = "Post- Cedar West Rx: Tree Scorch Height") 
+ # scale_fill_manual(values = c("#665191", "#ffa600"),
+ #                   labels = c("L" = "Live", "D" = "Dead")) + 
+ # geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5) + 
+ # facet_wrap(~Species.Symbol, scales="free_y")
+s1
+
+#Scorch Percentage 
+
+
+#Height to Live Crown (did the live canopy rise?)
 
 ```
 
