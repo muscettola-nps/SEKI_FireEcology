@@ -10,13 +10,11 @@ output: html_document
 ```{r}
 #install packages
 #install.packages(c("ggplot2", "dplyr", "tidyverse"))
-install.packages("viridis")
 
 #load libraries
 library(dplyr)
 library(tidyverse)
 library(ggplot2)
-library(viridis)
 
 #set working directory
 path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/Raw/"
@@ -369,11 +367,151 @@ d
 ```
 
 
-Size  Class density analysis
+# Trees Data Visualizations
+
+##Tree Calculations 
+NOTE: these calculations include all trees (Dead & Down as well) regardless of whether they all have a measured DBH. It may be worthwhile to exclude dead & down trees for a more "accurate" tree density (trees per ac).
 ```{r}
-#plot mean density for size class each year and total
-ggplot(Seedlings_density, aes(x=Monitoring.Status, y=density_mean))
+#Tree basal area calculation
+temp <- Trees_data %>%
+  #calculate basal area metric (BA_m2) and imperial (BA_ft2)
+  mutate(DBH_in = DBH*0.393701, BA_m2 = pi*(DBH/2)^2/10000, BA_ft2 = pi*(DBH*0.393701/2)^2/144) %>%
+  #remove DD trees because the lack of DBH messes with subsequent analyses.
+  filter(!is.na(DBH))
+
+#summarise for each monitoring status, plot, and tree status: BA, Trees/ac (or ha), and QMD
+Density_trees_all_m <- temp %>%
+  group_by(Monitoring.Status,MacroPlot.Name, Status) %>%
+  #count instances of L/D trees in each plot (Count), calculate BA per ha of L/D trees in each plot using the individual tree's BA (BA_m2/ha) (area: 50m x 20m = 1000m2 = 0.1ha)
+  summarise(Count = n(), BA_m2.ha = sum(BA_m2)/0.1) %>%
+  #calculate the trees/ha using the Count and plot size (TPHa), calculate the QMD using the basal area of the stand, trees per ha, and k constant 0.00007854 
+  mutate(TPHa = Count/0.1, QMD_cm = sqrt(BA_m2.ha/TPHa/0.00007854))
+  
+#imperial units
+Density_trees_all_ft <- temp %>%
+  group_by(Monitoring.Status, MacroPlot.Name, Status) %>%
+  #count trees in each plot (Count), calculate BA per ac of L/D tree species in each plot using the individual tree's BA_ft2 (BA_ft2.ac) (area: 50mx20m = 1000m2 = 0.247105)
+  summarise(Count = n(), BA_ft2.ac = sum(BA_ft2)/0.247105) %>%
+  #calculate the trees/ha using the Count and plot size (TPHa), calculate the QMD using the basal area of the stand, trees per ha, and k constant 0.005454154 
+  mutate(TPA = Count/0.247105 , QMD_in = sqrt(BA_ft2.ac/TPA/0.005454154))
+  
+
+## Calculate BA, QMD, and Tree density (TPA or TPHa) for each plot, monitoring status, tree status, and species
+
+Density_trees_sp_m <- temp %>%
+  group_by(Monitoring.Status,MacroPlot.Name, Status, Species.Symbol) %>%
+  #count instances of L/D trees in each plot (Count), calculate BA per ha of L/D trees in each plot using the individual tree's BA (BA_m2/ha) (area: 50m x 20m = 1000m2 = 0.1ha)
+  summarise(Count = n(), BA_m2.ha = sum(BA_m2)/0.1) %>%
+  #calculate the trees/ha using the Count and plot size (TPHa), calculate the QMD using the basal area of the stand, trees per ha, and k constant 0.00007854 
+  mutate(TPHa = Count/0.1, QMD_cm = sqrt(BA_m2.ha/TPHa/0.00007854)) 
+
+#imperial units
+Density_trees_sp_ft <- temp %>%
+  group_by(Monitoring.Status, MacroPlot.Name, Status, Species.Symbol) %>%
+  #count trees in each plot (Count), calculate BA per ac of L/D tree species in each plot using the individual tree's BA_ft2 (BA_ft2.ac) (area: 50mx20m = 1000m2 = 0.247105)
+  summarise(Count = n(), BA_ft2.ac = sum(BA_ft2)/0.247105) %>%
+  #calculate the trees/ha using the Count and plot size (TPHa), calculate the QMD using the basal area of the stand, trees per ha, and k constant 0.005454154 
+  mutate(TPA = Count/0.247105 , QMD_in = sqrt(BA_ft2.ac/TPA/0.005454154)) 
+
+
+#add an empty row for dead QUKE in Post03 to make graphs prettier
+temp2 <- tibble(Monitoring.Status = as.factor("Post03"), Macro.PlotName = "B:FPIPO1T09:001", Status = "D", Species.Symbol ="QUKE1", Count = 0, BA_ft2.ac = 0, TPA = 0, QMD_in = 0)
+Density_trees_sp_ft <- bind_rows(Density_trees_sp_ft, temp2)
+
+#subset density to only the most recent pre- and post- read (Pre03 and Post03)
+prepost_trees_all_ft <- filter(Density_trees_all_ft, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
+prepost_trees_all_m <- filter(Density_trees_all_m, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
+prepost_trees_sp_ft <- filter(Density_trees_sp_ft, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
+prepost_trees_sp_m <- filter(Density_trees_sp_m, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
+
+```
+
+## Plotting Basal Area
+
+Across all monitoring statuses (full dataset)
+```{r}
+
+  
+```
+
+Looking only at pre- and post-burn of most recent burn (Cedar West Rx)
+```{r}
+#plot all trees regardless of species. By status 
+t1 <- ggplot(prepost_trees_all_ft, aes(x=Monitoring.Status, y=BA_ft2.ac, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Basal Area (ft^2/ac)", title = "Pre- and Post- Cedar West Rx: Basal Area by Tree Status") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5)
+t1
+
+#now by species of tree
+t2 <- ggplot(prepost_trees_sp_ft, aes(x=Monitoring.Status, y=BA_ft2.ac, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Basal Area (ft^2/ac)", title = "Pre- and Post- Cedar West Rx: Basal Area by Species") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5) + 
+  facet_wrap(~Species.Symbol, scales="free_y")
+t2
 ```
 
 
+## Quadratic Mean Diameter 
+looking only at pre- post-burn
+```{r}
+#plot all trees regardless of species. By status 
+t3 <- ggplot(prepost_trees_all_ft, aes(x=Monitoring.Status, y=QMD_in, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Quadratic Mean Diameter (in)", title = "Pre- and Post- Cedar West Rx: Quadratic Mean Diameter by Tree Status") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5)
+t3
+
+#now by species of tree
+t4 <- ggplot(prepost_trees_sp_ft, aes(x=Monitoring.Status, y=QMD_in, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Quadratic Mean Diameter (in)", title = "Pre- and Post- Cedar West Rx: Quadratic Mean Diameter by Species") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5) + 
+  facet_wrap(~Species.Symbol, scales="free_y")
+t4
+```
+## Plotting Tree Density (Trees per ac or ha)
+```{r}
+#plot all trees regardless of species. By status 
+t5 <- ggplot(prepost_trees_all_ft, aes(x=Monitoring.Status, y=TPA, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Trees per Acre", title = "Pre- and Post- Cedar West Rx: Trees per Acre by Tree Status") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5)
+t5
+
+#now by species of tree
+t6 <- ggplot(prepost_trees_sp_ft, aes(x=Monitoring.Status, y=TPA, fill=Status)) +
+  geom_boxplot(position = position_dodge(0.8)) +
+  theme_bw() +
+  labs(x="Monitoring Status", y = "Trees per Acre", title = "Pre- and Post- Cedar West Rx: Trees per Acre by Species") +
+  scale_fill_manual(values = c("#665191", "#ffa600"),
+                    labels = c("L" = "Live", "D" = "Dead")) + 
+  geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5) + 
+  facet_wrap(~Species.Symbol, scales="free_y")
+t6
+```
+
+
+## Burn Metrics
+
+### Scorch
+```{r}
+
+```
 
