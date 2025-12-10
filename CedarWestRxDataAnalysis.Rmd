@@ -10,11 +10,53 @@ output: html_document
 ```{r}
 #install packages
 #install.packages(c("ggplot2", "dplyr", "tidyverse"))
+# packages needed for fuel loading analyses
+# install.packages("boot")
+# install.packages("DT")
+# install.packages("emmeans")
+# install.packages("flexdashboard")
+# install.packages("fs")
+# install.packages("ggrepel")
+# install.packages("here")
+# install.packages("htmltools")
+# install.packages("kableExtra")
+# install.packages("knitr")
+# install.packages("lubridate")
+# install.packages("multcomp")
+# install.packages("multcompView")
+# install.packages("patchwork")
+# install.packages("plotly")
+# install.packages("purrr")
+# install.packages("shiny")
+# install.packages("stringr")
+# install.packages("stringdist")
+#install.packages("xfun")
 
 #load libraries
 library(dplyr)
 library(tidyverse)
 library(ggplot2)
+#load libraries for fuel calculations
+library(boot)
+library(DT)
+library(emmeans)
+library(fs)
+library(flexdashboard)
+library(ggrepel)
+library(here)
+library(htmltools)
+library(kableExtra)
+library(knitr)
+library(lubridate)
+library(multcomp)
+library(multcompView)
+library(patchwork)
+library(plotly)
+library(purrr)
+library(reactable)
+library(shiny)
+library(stringr)
+library(stringdist)
 
 #set working directory
 path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/Raw/"
@@ -41,16 +83,12 @@ Note: Only do once. After the data is tidied, the code saves the tidy data as a 
 FWD <- FWD_raw %>%
   #fix the naming convention of Cedar Plot 1
   mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
-  #Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
   # Separate MacroPlot.Name to get Monitoring type
   separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
   # Remove relic X column
   select(!X) %>%
   # set column types
-  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+  mutate(Plot=as.factor(Plot), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
 
 #Ensure blanks in visited column are NA
 FWD$Visited[FWD$Visited==""] <- NA
@@ -73,16 +111,12 @@ rm(FWD, FWD_raw)
 CWD <- CWD_raw %>%
   #fix the naming convention of Cedar Plot 1
   mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
-  #Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
   # Separate MacroPlot.Name to get Monitoring type
   separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
   # Remove relic X column
   select(!X) %>%
   # set column types
-  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+  mutate(Plot=as.factor(Plot), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
 
 #Ensure blanks in visited column are NA
 CWD$Visited[CWD$Visited==""] <- NA
@@ -103,16 +137,12 @@ rm(CWD, CWD_raw)
 DuffLitt <- DuffLitt_raw %>%
   #fix the naming convention of Cedar Plot 1
   mutate(MacroPlot.Name = ifelse(startsWith(MacroPlot.Name, "Cedar"), "B:FPIPO1T09:001", MacroPlot.Name)) %>%
-  #Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
   # Separate MacroPlot.Name to get Monitoring type
   separate(MacroPlot.Name, sep = ":", into = c("BurnType", "MonitoringType", "Plot"), remove = FALSE) %>%
   # Remove relic X column
   select(!X) %>%
   # set column types
-  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+  mutate(Plot=as.factor(Plot), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
 
 #Ensure blanks in visited column are NA
 DuffLitt$Visited[DuffLitt$Visited==""] <- NA
@@ -224,35 +254,377 @@ rm(Trees, Trees_raw)
 ### Save tidy data as csv's 
 ```{r}
 #save tidy data as csv
-write.csv(FWD_data, paste0(path_out, "CGWestRx_FWD_data.csv"))
-write.csv(FWD_header, paste0(path_out, "CGWestRx_FWD_header.csv"))
-write.csv(CWD_data, paste0(path_out, "CGWestRx_CWD_data.csv"))
-write.csv(CWD_header, paste0(path_out, "CGWestRx_CWD_header.csv"))
-write.csv(DuffLitt_data, paste0(path_out, "CGWestRx_DuffLitt_data.csv"))
-write.csv(DuffLitt_header, paste0(path_out, "CGWestRx_DuffLitt_header.csv"))
-write.csv(PostBurnSev_data, paste0(path_out, "CGWestRx_PostBurnSev_data.csv"))
-write.csv(PostBurnSev_header, paste0(path_out, "CGWestRx_PostBurnSev_header.csv"))
-write.csv(Seedlings_data, paste0(path_out, "CGWestRx_Seedlings_data.csv"))
-write.csv(Seedlings_header, paste0(path_out, "CGWestRx_Seedlings_header.csv"))
-write.csv(Trees_data, paste0(path_out, "CGWestRx_Trees_data.csv"))
-write.csv(Trees_header, paste0(path_out, "CGWestRx_Trees_header.csv"))
+#write.csv(FWD_data, paste0(path_out, "CGWestRx_FWD_data.csv"))
+#write.csv(FWD_header, paste0(path_out, "CGWestRx_FWD_header.csv"))
+#write.csv(CWD_data, paste0(path_out, "CGWestRx_CWD_data.csv"))
+#write.csv(CWD_header, paste0(path_out, "CGWestRx_CWD_header.csv"))
+#write.csv(DuffLitt_data, paste0(path_out, "CGWestRx_DuffLitt_data.csv"))
+#write.csv(DuffLitt_header, paste0(path_out, "CGWestRx_DuffLitt_header.csv"))
+#write.csv(PostBurnSev_data, paste0(path_out, "CGWestRx_PostBurnSev_data.csv"))
+#write.csv(PostBurnSev_header, paste0(path_out, "CGWestRx_PostBurnSev_header.csv"))
+#write.csv(Seedlings_data, paste0(path_out, "CGWestRx_Seedlings_data.csv"))
+#write.csv(Seedlings_header, paste0(path_out, "CGWestRx_Seedlings_header.csv"))
+#write.csv(Trees_data, paste0(path_out, "CGWestRx_Trees_data.csv"))
+#write.csv(Trees_header, paste0(path_out, "CGWestRx_Trees_header.csv"))
 ```
 
 # Calculating Fuel Loading
 12/7/2025 IM - waiting for Nick Kichas for code. Rfuels is not downloading due to newer version of R than allowed. 
-## Using Rfuels
+12/10/2025 IM - using Nick Kichas code for calculating fuel loads
+Github help on fuel loading formulas: https://fisher-j.github.io/multi-age/analysis/calculate_fuel_loading.html
+NOTE: the fuel loading constants come from Brown, 1974. https://www.fs.usda.gov/rm/pubs_int/int_gtr016.pdf
 
-###Rfuels setup
+###THIS DOESN'T WORK Rfuels setup
 ```{r}
 #install Rfuels package
-install.packages("devtools")
-library(devtools)
-devtools::install_github('danfosterfire/Rfuels')
-install.packages("Rfuels")
-install.packages("Rtools")
+#install.packages("devtools")
+#library(devtools)
+#devtools::install_github('danfosterfire/Rfuels')
+#install.packages("Rfuels")
+#install.packages("Rtools")
 
 #load Rfuels package
-library(Rfuels)
+#library(Rfuels)
+```
+
+### THIS WORKS: Using YELL code
+
+1-100-hr fuels
+```{r}
+# ---- Function to calculate 1-100-hr fuels for any park dataset ---- #
+calculate_ffl_fuels <- function(df) {
+  
+  # ---- Step 1: Ensure Date is proper datetime format ---- #
+  df <- df %>%
+    mutate(
+      Date = mdy_hms(Date),
+      Year = year(Date)
+    )
+  
+  # ---- Step 2: Compute per-transect fuel load ---- #
+  transect_level <- df %>%
+    mutate(
+      d2_1hr = 0.0151,
+      d2_10hr = 0.289, 
+      d2_100hr = 2.76, 
+      s_1hr_10hr = 0.48,
+      s_100hr = 0.40,
+      a = 1.13,
+      c = sqrt(1 + (Slope / 100)^2),
+      OneHrTranLen = 6,
+      TenHrTranLen = 6,
+      HunHrTranLen = 12, 
+      OneHr_FuelLoad = (11.64 * OneHr * d2_1hr   * s_1hr_10hr * a * c) / OneHrTranLen,
+      TenHr_FuelLoad = (11.64 * TenHr * d2_10hr  * s_1hr_10hr * a * c) / TenHrTranLen,
+      HunHr_FuelLoad = (11.64 * HunHr * d2_100hr * s_100hr    * a * c) / HunHrTranLen,
+      FuelLoad = OneHr_FuelLoad + TenHr_FuelLoad + HunHr_FuelLoad
+    )
+
+  # ---- Step 3: KEEP TRANSECT-LEVEL DATA (do NOT summarise here) ---- #
+  plot_level_fine <- transect_level %>%
+    mutate(
+      Transect_ID = row_number()  # keeps unique transect within plot
+    )
+}
+
+# --------- For only 1 FWD dataset -------- #
+ffl <- calculate_ffl_fuels(FWD_data)  
+
+# Summarize FWD fuel loading according to Monitoring Status #
+ffl_summary <- ffl %>%
+  group_by(Monitoring.Status) %>%
+  summarise(onehr_avg_fl = mean(OneHr_FuelLoad), onehr_min_fl = min(OneHr_FuelLoad), onehr_max_fl = max(OneHr_FuelLoad), onehr_sd_fl = sd(OneHr_FuelLoad), tenhr_avg_fl = mean(TenHr_FuelLoad), tenhr_min_fl = min(TenHr_FuelLoad), tenhr_max_fl = max(TenHr_FuelLoad), tenhr_sd_fl = sd(TenHr_FuelLoad), hunhr_avg_fl = mean(HunHr_FuelLoad), hunhr_min_fl = min(HunHr_FuelLoad), hunhr_max_fl = max(HunHr_FuelLoad), hunhr_sd_fl = sd(HunHr_FuelLoad))
+
+##############USE THIS IF DOING MULTIPLE DATASETS ###
+ ## ---- Automatically detect all '_fuels_fine' datasets ---- #
+ ## fuel_objs <- ls(pattern = "_fuels_fine$")  # find all objects ending with "_fuels_fine"
+
+# ---- Create a named list of these data objects ---- #
+#  fuel_datasets <- mget(fuel_objs)
+
+# ---- Apply function to each dataset and merge ---- #
+#  ffl_summary <- imap_dfr(fuel_datasets, ~ {
+#    park_code <- str_extract(.y, "^[^_]+")  # extract characters before first underscore
+#    calculate_ffl_fuels(.x) %>%
+#      mutate(Park = park_code)
+#  })
+
+# ---- View merged summary ---- #
+#  ffl_summary
+```
+
+1000-hr fuel calculations
+```{r}
+# -------------------------- #
+# ---- 1,000-Hour Fuels ---- #
+# -------------------------- #
+
+# ---- Function to calculate 1000-hr fuels for any park dataset ---- #
+calculate_coarse_fuels <- function(fuels_df, metadata_df) {
+
+  # ---- Step 1: Remove NumTran column from observation data frame ---- #
+  fuels_df <- fuels_df %>% select(-NumTran)
+
+  # ---- Step 2: Standardize Dates ---- #
+  fuels_df <- fuels_df %>%
+    mutate(Date = mdy_hms(Date),
+           Year = year(Date))
+
+  metadata_df <- metadata_df %>%
+    mutate(Date = mdy_hms(Date),
+           Year = year(Date))
+
+  # ---- Step 3: Extract CLEAN metadata (NumTran per plot) ---- #
+  metadata_only <- metadata_df %>%
+    filter(!is.na(NumTran)) %>%
+    distinct(MacroPlot.Name, Monitoring.Status, NumTran)
+
+  # ---- Step 3B: Extract observation rows ----- #
+  fuels_df <- fuels_df %>%
+    filter(!is.na(DecayCl), !is.na(Dia), !is.na(Transect))
+  
+  # ---- Step 3C: Bring NumTran into ALL fuels rows ---- #
+  fuels_df <- fuels_df %>%
+    left_join(metadata_only,
+              by = c("MacroPlot.Name", "Monitoring.Status")) %>%
+    mutate(
+      NumTran = if_else(is.na(NumTran), 1L, NumTran)  # fallback to 1 transect
+    )
+
+  # ---- Step 3D: Ensure Transect is numeric BEFORE calculations ---- #
+  fuels_df <- fuels_df %>% mutate(
+    Transect = suppressWarnings(as.numeric(Transect))
+  )
+  
+  # ---- Step 4: Compute per-log contributions ---- #
+  a <- 1.0
+  s_sound <- 0.4
+  s_rotten <- 0.3
+  conversion_factor <- 11.64
+  transect_length <- 50
+
+  fuels_processed <- fuels_df %>%
+    mutate(
+      Transect = suppressWarnings(as.numeric(Transect)),
+      DecayCl = suppressWarnings(as.numeric(DecayCl)),
+      Dia = suppressWarnings(as.numeric(Dia))
+    ) %>%
+    filter(DecayCl %in% c(3, 4)) %>%
+    mutate(
+      D2 = Dia^2,
+      s = if_else(DecayCl == 3, s_sound, s_rotten),
+      slope_correction = sqrt(1 + (Slope / 100)^2),
+      Load = (conversion_factor * D2 * s * a * slope_correction) / transect_length,
+      Load_Adjusted = Load / NumTran
+    )
+
+  # ---- Step 5A: Create full grid of expected transects per plot/year ---- #
+  all_transects <- fuels_df %>%
+    distinct(MacroPlot.Name, Monitoring.Status, Year) %>%
+    left_join(metadata_only, by = c("MacroPlot.Name", "Monitoring.Status")) %>%
+    tidyr::uncount(weights = NumTran, .id = "Transect") %>%
+    mutate(Transect = suppressWarnings(as.numeric(Transect)))
+  
+  # ---- Step 5B: Summarise computed loads (only where logs existed) ---- #
+  loads_per_transect <- fuels_processed %>% 
+    group_by(MacroPlot.Name, Monitoring.Status, Year, Transect) %>% 
+    summarise(
+      Decay3_Load     = sum(Load[DecayCl == 3], na.rm = TRUE),
+      Decay4_Load     = sum(Load[DecayCl == 4], na.rm = TRUE),
+      Coarse_FuelLoad = sum(Load, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(Transect = suppressWarnings(as.numeric(Transect)))
+  
+  # ---- Step 5C: Bring zeros back in for missing decay classes ---- #
+  fuel_by_transect <- all_transects %>%
+    left_join(loads_per_transect,
+              by = c("MacroPlot.Name", "Monitoring.Status", "Year", "Transect")) %>%
+    mutate(
+      Decay3_Load     = replace_na(Decay3_Load, 0),
+      Decay4_Load     = replace_na(Decay4_Load, 0),
+      Coarse_FuelLoad = replace_na(Coarse_FuelLoad, 0)
+    )
+
+  return(fuel_by_transect)
+}
+
+## --------- for only one dataset ---------------- ##
+CWD_fl <- calculate_coarse_fuels(CWD_data, CWD_header)
+
+#summarize CWD fuel loading by monitoring status
+CWD_fl_summary <- CWD_fl %>%
+  group_by(Monitoring.Status) %>%
+  summarise(Decay3_avg_fl = mean(Decay3_Load), Decay3_min_fl = min(Decay3_Load), Decay3_max_fl = max(Decay3_Load), Decay3_sd_fl = sd(Decay3_Load), Decay4_avg_fl = mean(Decay4_Load), Decay4_min_fl = min(Decay4_Load), Decay4_max_fl = max(Decay4_Load), Decay4_sd_fl = sd(Decay4_Load), Coarse_avg_fl = mean(Coarse_FuelLoad), Coarse_min_fl = min(Coarse_FuelLoad), Coarse_max_fl = max(Coarse_FuelLoad), Coarse_sd_fl = sd(Coarse_FuelLoad))
+
+# ---- Automatically detect all paired '_thousands' datasets ---- #
+#  fuels_objs <- ls(pattern = "_fuels_thousands$")
+#  metadata_objs <- ls(pattern = "_fuels_thousands_metadata$")
+
+# Identify park codes that exist in both sets
+#  parks <- intersect(
+#    str_extract(fuels_objs, "^[^_]+"),
+#    str_extract(metadata_objs, "^[^_]+")
+#  )
+
+# ---- Apply function to each park ---- #
+#  coarse_summary <- map_dfr(parks, function(park) {
+    
+#    fuels_df <- get(paste0(park, "_fuels_thousands"))
+#    metadata_df <- get(paste0(park, "_fuels_thousands_metadata"))
+    
+#    calculate_coarse_fuels(fuels_df, metadata_df) %>%
+#      mutate(Park = park)
+#})
+
+# ---- View merged summary ---- #
+#  coarse_summary
+  
+################################################################################
+################################################################################
+################################################################################
+```
+
+Duff and Litter 
+```{r}
+# -------------------------------------- #  
+# ---- Litter and Duff Measurements ---- #
+# -------------------------------------- #
+
+# ---- Function to calculate litter and duff fuel loads ---- #
+calculate_litterduff <- function(fuels_df, metadata_df) {
+  
+  # ---- Step 1: Remove NumTran column from observation data frame ---- # 
+  fuels_df <- DuffLitt_data %>% select(-NumTran)
+
+  # ---- Step 2: Standardize Dates ---- #
+  fuels_df <- fuels_df %>%
+    mutate(Date = mdy_hms(Date),
+           Year = year(Date))
+
+  metadata_df <- DuffLitt_header %>%
+    mutate(Date = mdy_hms(Date),
+           Year = year(Date))
+
+  # ---- Step 3A: Extract CLEAN metadata (NumTran per plot) ---- #
+  metadata_only <- metadata_df %>%
+    filter(!is.na(NumTran)) %>%
+    distinct(MacroPlot.Name, Monitoring.Status, NumTran)
+
+  # ---- Step 3B: Extract observation rows ----- #
+  fuels_df <- fuels_df %>%
+    filter(!is.na(LittDep), !is.na(DuffDep), !is.na(Transect))
+  
+  # ---- Step 3C: Bring NumTran into ALL fuels rows ---- #
+  fuels_df <- fuels_df %>%
+    left_join(metadata_only,
+              by = c("MacroPlot.Name", "Monitoring.Status")) %>%
+    mutate(
+      NumTran = if_else(is.na(NumTran), 1L, NumTran)  # fallback to 1 transect
+    )
+
+  # ---- Step 3D: Ensure Transect is numeric BEFORE calculations ---- #
+  fuels_df <- fuels_df %>% mutate(
+    Transect = suppressWarnings(as.numeric(Transect))
+  )
+  
+  # ================================ #
+  # ==== Bulk density constants ==== #
+  # ================================ #
+
+  litter_bd <- 2.75 * 1.815 # FFI default bulk density for litter (2.75)
+  duff_bd   <- 5.5  * 1.815 # FFI default bulk density for duff (5.5)
+  
+  indivpoint_fl <- fuels_df %>%
+    mutate(
+      Litter_Fuel_indiv = LittDep * litter_bd, 
+      Duff_Fuel_indiv = DuffDep * duff_bd,
+      Total_Fuel_indiv = Litter_Fuel_indiv + Duff_Fuel_indiv) %>%
+    group_by(MacroPlot.Name, Monitoring.Status, Transect) %>%
+    summarise(
+      Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
+      Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
+      Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv))
+  
+        # ---- KEEP INDIVIDUAL FUEL VALUES ---- #
+      #Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
+      #Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
+      #Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv))
+  
+  #NOTE: the below code averages by transect - I do not like this because it makes understanding standard deviation difficult. which is why the above code was added^  
+  # ---- Step 4: Transect-level averages ---- #
+  transect_means <- fuels_df %>%
+    group_by(MacroPlot.Name, Monitoring.Status, Year, Transect, NumTran) %>%
+    summarise(
+      LittDep_tran = mean(LittDep, na.rm = TRUE),
+      DuffDep_tran = mean(DuffDep, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(Transect <= NumTran) %>%   # keep only valid transects
+    mutate(
+      Litter_Fuel_tran = LittDep_tran * litter_bd,
+      Duff_Fuel_tran   = DuffDep_tran * duff_bd,
+      Total_Fuel_tran  = Litter_Fuel_tran + Duff_Fuel_tran
+    )
+  
+  # ---- Step 5: Plot-level averages ---- #
+  plot_means <- transect_means %>%
+    group_by(MacroPlot.Name, Monitoring.Status, Year) %>%
+    summarise(
+      Avg_LittDep = mean(LittDep_tran, na.rm = TRUE),
+      Avg_DuffDep = mean(DuffDep_tran, na.rm = TRUE),
+  
+      # ---- plot-level fuels ---- #
+      Litter_Fuel = mean(Litter_Fuel_tran, na.rm = TRUE),
+      Duff_Fuel   = mean(Duff_Fuel_tran, na.rm = TRUE),
+      Total_Fuel  = mean(Total_Fuel_tran, na.rm = TRUE),
+  
+      # ---- KEEP TRANSECT FUEL VALUES ---- #
+      Litter_Fuel_tran = list(Litter_Fuel_tran),
+      Duff_Fuel_tran   = list(Duff_Fuel_tran),
+      Total_Fuel_tran  = list(Total_Fuel_tran),
+      
+      # ---- KEEP INDIVIDUAL FUEL VALUES ---- #
+      Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
+      Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
+      Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv),
+  
+      .groups = "drop"
+  )
+  
+  return(plot_means)
+}
+
+# ---------- For only one dataset ------------------ #
+DuffLitt_fl <- calculate_litterduff(DuffLitt_data, DuffLitt_header)
+
+#summarise by Monitoring Status
+DuffLitt_fl_summary <- DuffLitt_fl %>%
+  group_by(Monitoring.Status) %>%
+  summarise(Litt_avg_dep = mean(Avg_LittDep), Duff_avg_dep = mean(Avg_DuffDep), Decay3_min_fl = min(Decay3_Load), Decay3__max_fl = max(Decay3_Load), Decay3__sd_fl = sd(Decay3_Load), Decay4__avg_fl = mean(Decay4_Load), Decay4__min_fl = min(Decay4_Load), Decay4__max_fl = max(Decay4_Load), Decay4__sd_fl = sd(Decay4_Load), Coarse_avg_fl = mean(Coarse_FuelLoad), Coarse_min_fl = min(Coarse_FuelLoad), Coarse_max_fl = max(Coarse_FuelLoad), Coarse_sd_fl = sd(Coarse_FuelLoad))
+
+# ---- Automatically detect all paired '_litterduff' datasets ---- #
+#  fuels_objs <- ls(pattern = "_fuels_litterduff$")
+#  metadata_objs <- ls(pattern = "_fuels_litterduff_metadata$")
+
+# ---- Identify park codes that exist in both sets ---- #
+#  parks <- intersect(
+#    str_extract(fuels_objs, "^[^_]+"),
+#    str_extract(metadata_objs, "^[^_]+")
+#  )
+
+# ---- Apply function to each park ---- #
+#  litterduff_summary <- map_dfr(parks, function(park) {
+    
+#    fuels_df <- get(paste0(park, "_fuels_litterduff"))
+#    metadata_df <- get(paste0(park, "_fuels_litterduff_metadata"))
+    
+#    calculate_litterduff(fuels_df, metadata_df) %>%
+#      mutate(Park = park)
+#})
+
+# ---- View merged summary ---- #
+#  litterduff_summary
 ```
 
 ###Reformat
