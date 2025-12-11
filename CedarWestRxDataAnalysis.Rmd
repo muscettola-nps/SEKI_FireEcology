@@ -50,7 +50,7 @@ library(knitr)
 library(lubridate)
 library(multcomp)
 library(multcompView)
-library(patchwork)
+# library(patchwork)
 library(plotly)
 library(purrr)
 library(reactable)
@@ -455,7 +455,18 @@ CWD_fl <- calculate_coarse_fuels(CWD_data, CWD_header)
 #summarize CWD fuel loading by monitoring status
 CWD_fl_summary <- CWD_fl %>%
   group_by(Monitoring.Status) %>%
-  summarise(Decay3_avg_fl = mean(Decay3_Load), Decay3_min_fl = min(Decay3_Load), Decay3_max_fl = max(Decay3_Load), Decay3_sd_fl = sd(Decay3_Load), Decay4_avg_fl = mean(Decay4_Load), Decay4_min_fl = min(Decay4_Load), Decay4_max_fl = max(Decay4_Load), Decay4_sd_fl = sd(Decay4_Load), Coarse_avg_fl = mean(Coarse_FuelLoad), Coarse_min_fl = min(Coarse_FuelLoad), Coarse_max_fl = max(Coarse_FuelLoad), Coarse_sd_fl = sd(Coarse_FuelLoad))
+  summarise(Decay3_avg_fl = mean(Decay3_Load), 
+            Decay3_min_fl = min(Decay3_Load), 
+            Decay3_max_fl = max(Decay3_Load), 
+            Decay3_sd_fl = sd(Decay3_Load), 
+            Decay4_avg_fl = mean(Decay4_Load), 
+            Decay4_min_fl = min(Decay4_Load), 
+            Decay4_max_fl = max(Decay4_Load), 
+            Decay4_sd_fl = sd(Decay4_Load), 
+            Coarse_avg_fl = mean(Coarse_FuelLoad), 
+            Coarse_min_fl = min(Coarse_FuelLoad), 
+            Coarse_max_fl = max(Coarse_FuelLoad), 
+            Coarse_sd_fl = sd(Coarse_FuelLoad))
 
 # ---- Automatically detect all paired '_thousands' datasets ---- #
 #  fuels_objs <- ls(pattern = "_fuels_thousands$")
@@ -495,14 +506,14 @@ Duff and Litter
 calculate_litterduff <- function(fuels_df, metadata_df) {
   
   # ---- Step 1: Remove NumTran column from observation data frame ---- # 
-  fuels_df <- DuffLitt_data %>% select(-NumTran)
+  fuels_df <- fuels_df %>% select(-NumTran)
 
   # ---- Step 2: Standardize Dates ---- #
   fuels_df <- fuels_df %>%
     mutate(Date = mdy_hms(Date),
            Year = year(Date))
 
-  metadata_df <- DuffLitt_header %>%
+  metadata_df <- metadata_df %>%
     mutate(Date = mdy_hms(Date),
            Year = year(Date))
 
@@ -535,21 +546,22 @@ calculate_litterduff <- function(fuels_df, metadata_df) {
   litter_bd <- 2.75 * 1.815 # FFI default bulk density for litter (2.75)
   duff_bd   <- 5.5  * 1.815 # FFI default bulk density for duff (5.5)
   
+  # ---- KEEP INDIVIDUAL FUEL VALUES ---- #
+  
   indivpoint_fl <- fuels_df %>%
     mutate(
       Litter_Fuel_indiv = LittDep * litter_bd, 
       Duff_Fuel_indiv = DuffDep * duff_bd,
       Total_Fuel_indiv = Litter_Fuel_indiv + Duff_Fuel_indiv) %>%
-    group_by(MacroPlot.Name, Monitoring.Status, Transect) %>%
+    group_by(MacroPlot.Name, Monitoring.Status) %>%
     summarise(
-      Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
-      Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
-      Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv))
-  
-        # ---- KEEP INDIVIDUAL FUEL VALUES ---- #
-      #Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
-      #Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
-      #Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv))
+      LittDep_indiv = list(LittDep),
+      DuffDep_indiv = list(DuffDep),
+      Litter_Fuel_indiv = list(Litter_Fuel_indiv),
+      Duff_Fuel_indiv = list(Duff_Fuel_indiv),
+      Total_Fuel_indiv = list(Total_Fuel_indiv),
+      .groups = "drop")
+
   
   #NOTE: the below code averages by transect - I do not like this because it makes understanding standard deviation difficult. which is why the above code was added^  
   # ---- Step 4: Transect-level averages ---- #
@@ -583,14 +595,13 @@ calculate_litterduff <- function(fuels_df, metadata_df) {
       Litter_Fuel_tran = list(Litter_Fuel_tran),
       Duff_Fuel_tran   = list(Duff_Fuel_tran),
       Total_Fuel_tran  = list(Total_Fuel_tran),
-      
-      # ---- KEEP INDIVIDUAL FUEL VALUES ---- #
-      Litter_Fuel_indiv = list(indivpoint_fl$Litter_Fuel_indiv),
-      Duff_Fuel_indiv = list(indivpoint_fl$Duff_Fuel_indiv),
-      Total_Fuel_indiv = list(indivpoint_fl$Total_Fuel_indiv),
   
       .groups = "drop"
   )
+  
+  # adds the individual fuel load measurements from each plot to the plot_means dataframe
+  plot_means <- plot_means %>%
+  left_join(indivpoint_fl, by = c("MacroPlot.Name", "Monitoring.Status"))
   
   return(plot_means)
 }
@@ -598,10 +609,37 @@ calculate_litterduff <- function(fuels_df, metadata_df) {
 # ---------- For only one dataset ------------------ #
 DuffLitt_fl <- calculate_litterduff(DuffLitt_data, DuffLitt_header)
 
-#summarise by Monitoring Status
-DuffLitt_fl_summary <- DuffLitt_fl %>%
-  group_by(Monitoring.Status) %>%
-  summarise(Litt_avg_dep = mean(Avg_LittDep), Duff_avg_dep = mean(Avg_DuffDep), Decay3_min_fl = min(Decay3_Load), Decay3__max_fl = max(Decay3_Load), Decay3__sd_fl = sd(Decay3_Load), Decay4__avg_fl = mean(Decay4_Load), Decay4__min_fl = min(Decay4_Load), Decay4__max_fl = max(Decay4_Load), Decay4__sd_fl = sd(Decay4_Load), Coarse_avg_fl = mean(Coarse_FuelLoad), Coarse_min_fl = min(Coarse_FuelLoad), Coarse_max_fl = max(Coarse_FuelLoad), Coarse_sd_fl = sd(Coarse_FuelLoad))
+#summarise by Monitoring Status to call the function replace "..." with one or more groups you want to summarize the dataframe by.
+
+create_DL_summary <- function(fuelload_df, ...) {
+  
+  temp <- fuelload_df %>%
+    unnest(c(LittDep_indiv, DuffDep_indiv, Litter_Fuel_indiv, Duff_Fuel_indiv, Total_Fuel_indiv)) %>%
+    group_by(...) %>%
+    summarise(LittDep_avg = mean(LittDep_indiv),
+              LittDep_min = min(LittDep_indiv),
+              LittDep_max = max(LittDep_indiv),
+              LittDep_sd = sd(LittDep_indiv),
+              DuffDep_avg = mean(DuffDep_indiv),
+              DuffDep_min = min(DuffDep_indiv),
+              DuffDep_max = max(DuffDep_indiv),
+              DuffDep_sd = sd(DuffDep_indiv),
+              Litter_Fuel_avg = mean(Litter_Fuel_indiv),
+              Litter_Fuel_min = min(Litter_Fuel_indiv),
+              Litter_Fuel_max = max(Litter_Fuel_indiv),
+              Litter_Fuel_sd = sd(Litter_Fuel_indiv),
+              Duff_Fuel_avg = mean(Duff_Fuel_indiv),
+              Duff_Fuel_min = min(Duff_Fuel_indiv),
+              Duff_Fuel_max = max(Duff_Fuel_indiv),
+              Duff_Fuel_sd = sd(Duff_Fuel_indiv),
+              Total_Fuel_avg = mean(Total_Fuel_indiv),
+              Total_Fuel_min = min(Total_Fuel_indiv),
+              Total_Fuel_max = max(Total_Fuel_indiv),
+              Total_Fuel_sd = sd(Total_Fuel_indiv)
+              )
+}
+
+DuffLitt_fl_summary <- create_DL_summary(DuffLitt_fl, Monitoring.Status)
 
 # ---- Automatically detect all paired '_litterduff' datasets ---- #
 #  fuels_objs <- ls(pattern = "_fuels_litterduff$")
@@ -625,6 +663,11 @@ DuffLitt_fl_summary <- DuffLitt_fl %>%
 
 # ---- View merged summary ---- #
 #  litterduff_summary
+```
+
+Combine summaries for data reporting
+```{r}
+finalfl_summary <- left_join(ffl_summary, CWD_fl_summary, DuffLitt_fl_summary, by = "Monitoring.Status")
 ```
 
 ###Reformat
