@@ -333,7 +333,19 @@ ffl <- calculate_ffl_fuels(FWD_data)
 # Summarize FWD fuel loading according to Monitoring Status #
 ffl_summary <- ffl %>%
   group_by(Monitoring.Status) %>%
-  summarise(onehr_avg_fl = mean(OneHr_FuelLoad), onehr_min_fl = min(OneHr_FuelLoad), onehr_max_fl = max(OneHr_FuelLoad), onehr_sd_fl = sd(OneHr_FuelLoad), tenhr_avg_fl = mean(TenHr_FuelLoad), tenhr_min_fl = min(TenHr_FuelLoad), tenhr_max_fl = max(TenHr_FuelLoad), tenhr_sd_fl = sd(TenHr_FuelLoad), hunhr_avg_fl = mean(HunHr_FuelLoad), hunhr_min_fl = min(HunHr_FuelLoad), hunhr_max_fl = max(HunHr_FuelLoad), hunhr_sd_fl = sd(HunHr_FuelLoad))
+  summarise(onehr_avg_fl = mean(OneHr_FuelLoad), 
+            onehr_min_fl = min(OneHr_FuelLoad), 
+            onehr_max_fl = max(OneHr_FuelLoad), 
+            onehr_sd_fl = sd(OneHr_FuelLoad), 
+            tenhr_avg_fl = mean(TenHr_FuelLoad), 
+            tenhr_min_fl = min(TenHr_FuelLoad), 
+            tenhr_max_fl = max(TenHr_FuelLoad), 
+            tenhr_sd_fl = sd(TenHr_FuelLoad), 
+            hunhr_avg_fl = mean(HunHr_FuelLoad), 
+            hunhr_min_fl = min(HunHr_FuelLoad), 
+            hunhr_max_fl = max(HunHr_FuelLoad), 
+            hunhr_sd_fl = sd(HunHr_FuelLoad)
+            )
 
 ##############USE THIS IF DOING MULTIPLE DATASETS ###
  ## ---- Automatically detect all '_fuels_fine' datasets ---- #
@@ -466,7 +478,8 @@ CWD_fl_summary <- CWD_fl %>%
             Coarse_avg_fl = mean(Coarse_FuelLoad), 
             Coarse_min_fl = min(Coarse_FuelLoad), 
             Coarse_max_fl = max(Coarse_FuelLoad), 
-            Coarse_sd_fl = sd(Coarse_FuelLoad))
+            Coarse_sd_fl = sd(Coarse_FuelLoad)
+            )
 
 # ---- Automatically detect all paired '_thousands' datasets ---- #
 #  fuels_objs <- ls(pattern = "_fuels_thousands$")
@@ -667,7 +680,17 @@ DuffLitt_fl_summary <- create_DL_summary(DuffLitt_fl, Monitoring.Status)
 
 Combine summaries for data reporting
 ```{r}
-finalfl_summary <- left_join(ffl_summary, CWD_fl_summary, DuffLitt_fl_summary, by = "Monitoring.Status")
+finalfl_summary <- ffl_summary %>%
+  left_join(CWD_fl_summary, by = "Monitoring.Status") %>%
+  left_join(., DuffLitt_fl_summary, by = "Monitoring.Status")
+```
+
+save fuel loading tables
+```{r}
+write.csv(ffl_summary, paste0(path_out, "CGWestRx_FWD_fl_summary.csv"))
+write.csv(CWD_fl_summary, paste0(path_out, "CGWestRx_CWD_fl_summary.csv"))
+write.csv(DuffLitt_fl_summary, paste0(path_out, "CGWestRx_DuffLitt_fl_summary.csv"))
+write.csv(finalfl_summary, paste0(path_out, "CGWestRx_all_fl_summary.csv"))
 ```
 
 ###Reformat
@@ -787,6 +810,10 @@ d
 ##Tree Calculations 
 NOTE: these calculations include all trees (Dead & Down as well) regardless of whether they all have a measured DBH. It may be worthwhile to exclude dead & down trees for a more "accurate" tree density (trees per ac).
 ```{r}
+#tidy the Tree data - noticed that there were trees with "d" status and "S" status in the data -> these need to be corrected to "D" status
+Trees_data <- Trees_data %>%
+  mutate(Status = ifelse(Status == "d", "D", ifelse(Status == "S", "D", Status)))
+
 #Tree basal area calculation
 temp <- Trees_data %>%
   #calculate basal area metric (BA_m2) and imperial (BA_ft2)
@@ -839,6 +866,62 @@ prepost_trees_all_m <- filter(Density_trees_all_m, Monitoring.Status == "Pre03" 
 prepost_trees_sp_ft <- filter(Density_trees_sp_ft, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
 prepost_trees_sp_m <- filter(Density_trees_sp_m, Monitoring.Status == "Pre03" | Monitoring.Status =="Post03") 
 
+#summarize trees/ac, QMD, basal area, and snags/ac by monitoring status
+Density_trees_all_ft_summary <- Density_trees_all_ft %>%
+  group_by(Monitoring.Status, Status) %>%
+  summarise(avg_TPA = mean(TPA),
+            sd_TPA = sd(TPA),
+            min_TPA = min(TPA),
+            max_TPA = max(TPA),
+            avg_BA_ft2.ac = mean(BA_ft2.ac),
+            sd_BA_ft2.ac = sd(BA_ft2.ac),
+            min_BA_ft2.ac = min(BA_ft2.ac),
+            max_BA_ft2.ac = max(BA_ft2.ac),
+            avg_QMD_in = mean(QMD_in),
+            sd_QMD_in = sd(QMD_in),
+            min_QMD_in = min(QMD_in),
+            max_QMD_in = max(QMD_in))
+```
+save summary table
+```{r}
+#save summary table
+#write.csv(Density_trees_all_ft_summary, paste0(path_out, "CGWestRx_Density_trees_all_ft_summary.csv"))
+```
+
+summarizing tree data for trees with DBH > 6in
+```{r}
+Density_trees_grt6_ft <- temp %>%
+  filter(DBH_in >= 6) %>%
+  group_by(Monitoring.Status, MacroPlot.Name, Status) %>%
+  #count trees in each plot (Count), calculate BA per ac of L/D tree species in each plot using the individual tree's BA_ft2 (BA_ft2.ac) (area: 50mx20m = 1000m2 = 0.247105)
+  summarise(Count = n(), BA_ft2.ac = sum(BA_ft2)/0.247105) %>%
+  #calculate the trees/ha using the Count and plot size (TPHa), calculate the QMD using the basal area of the stand, trees per ha, and k constant 0.005454154 
+  mutate(TPA = Count/0.247105 , QMD_in = sqrt(BA_ft2.ac/TPA/0.005454154))
+
+Density_trees_grt6_ft_summary <- Density_trees_grt6_ft %>%
+  group_by(Monitoring.Status, Status) %>%
+  summarise(avg_TPA = mean(TPA),
+            sd_TPA = sd(TPA),
+            min_TPA = min(TPA),
+            max_TPA = max(TPA),
+            avg_BA_ft2.ac = mean(BA_ft2.ac),
+            sd_BA_ft2.ac = sd(BA_ft2.ac),
+            min_BA_ft2.ac = min(BA_ft2.ac),
+            max_BA_ft2.ac = max(BA_ft2.ac),
+            avg_QMD_in = mean(QMD_in),
+            sd_QMD_in = sd(QMD_in),
+            min_QMD_in = min(QMD_in),
+            max_QMD_in = max(QMD_in))
+  
+```
+
+
+## Plotting DBH
+```{r}
+hist1 <- ggplot(Trees_data, aes(x=DBH*0.39370079)) +
+  geom_histogram(binwidth=1) +
+  facet_grid(Status~Monitoring.Status, scales = "free")
+hist1
 ```
 
 ## Plotting Basal Area
