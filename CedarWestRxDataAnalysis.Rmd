@@ -235,7 +235,16 @@ Trees <- Trees_raw %>%
   # Remove relic X column
   select(!X) %>%
   # set column types
-  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03")))
+  mutate(Plot=as.factor(Plot), Year = as.numeric(Year), Monitoring.Status = factor(Monitoring.Status, levels = c("Pre01", "Post01", "Re01Year01", "Re01Year02", "Re01Year05", "Re01Year10", "Pre02", "Post02", "Re02Year01", "Re02Year05", "Pre03", "Post03"))) %>%
+  #tidy the Tree data - noticed that there were trees with "d" status and "S" status in the data -> these need to be corrected to "D" status
+  mutate(Status = ifelse(Status == "d", "D", ifelse(Status == "S", "D", Status))) %>%
+   #calculate basal area metric (BA_m2) and imperial (BA_ft2)
+  mutate(DBH_in = DBH*0.393701, BA_m2 = pi*(DBH/2)^2/10000, BA_ft2 = pi*(DBH*0.393701/2)^2/144) %>%
+  #remove DD trees because the lack of DBH messes with subsequent analyses.
+  filter(!is.na(DBH)) #%>%
+  #count of trees/ac needed for downstream analyses
+  #mutate(Count = 1*0.24710538)
+  
 
 #Ensure blanks in visited column are NA
 Trees$Visited[Trees$Visited==""] <- NA
@@ -810,19 +819,9 @@ d
 ##Tree Calculations 
 NOTE: these calculations include all trees (Dead & Down as well) regardless of whether they all have a measured DBH. It may be worthwhile to exclude dead & down trees for a more "accurate" tree density (trees per ac).
 ```{r}
-#tidy the Tree data - noticed that there were trees with "d" status and "S" status in the data -> these need to be corrected to "D" status
-Trees_data <- Trees_data %>%
-  mutate(Status = ifelse(Status == "d", "D", ifelse(Status == "S", "D", Status)))
-
-#Tree basal area calculation
-temp <- Trees_data %>%
-  #calculate basal area metric (BA_m2) and imperial (BA_ft2)
-  mutate(DBH_in = DBH*0.393701, BA_m2 = pi*(DBH/2)^2/10000, BA_ft2 = pi*(DBH*0.393701/2)^2/144) %>%
-  #remove DD trees because the lack of DBH messes with subsequent analyses.
-  filter(!is.na(DBH))
 
 #summarise for each monitoring status, plot, and tree status: BA, Trees/ac (or ha), and QMD
-Density_trees_all_m <- temp %>%
+Density_trees_all_m <- Trees_data %>%
   group_by(Monitoring.Status,MacroPlot.Name, Status) %>%
   #count instances of L/D trees in each plot (Count), calculate BA per ha of L/D trees in each plot using the individual tree's BA (BA_m2/ha) (area: 50m x 20m = 1000m2 = 0.1ha)
   summarise(Count = n(), BA_m2.ha = sum(BA_m2)/0.1) %>%
@@ -830,7 +829,7 @@ Density_trees_all_m <- temp %>%
   mutate(TPHa = Count/0.1, QMD_cm = sqrt(BA_m2.ha/TPHa/0.00007854))
   
 #imperial units
-Density_trees_all_ft <- temp %>%
+Density_trees_all_ft <- Trees_data %>%
   group_by(Monitoring.Status, MacroPlot.Name, Status) %>%
   #count trees in each plot (Count), calculate BA per ac of L/D tree species in each plot using the individual tree's BA_ft2 (BA_ft2.ac) (area: 50mx20m = 1000m2 = 0.247105)
   summarise(Count = n(), BA_ft2.ac = sum(BA_ft2)/0.247105) %>%
@@ -840,7 +839,7 @@ Density_trees_all_ft <- temp %>%
 
 ## Calculate BA, QMD, and Tree density (TPA or TPHa) for each plot, monitoring status, tree status, and species
 
-Density_trees_sp_m <- temp %>%
+Density_trees_sp_m <- Trees_data %>%
   group_by(Monitoring.Status,MacroPlot.Name, Status, Species.Symbol) %>%
   #count instances of L/D trees in each plot (Count), calculate BA per ha of L/D trees in each plot using the individual tree's BA (BA_m2/ha) (area: 50m x 20m = 1000m2 = 0.1ha)
   summarise(Count = n(), BA_m2.ha = sum(BA_m2)/0.1) %>%
@@ -848,7 +847,7 @@ Density_trees_sp_m <- temp %>%
   mutate(TPHa = Count/0.1, QMD_cm = sqrt(BA_m2.ha/TPHa/0.00007854)) 
 
 #imperial units
-Density_trees_sp_ft <- temp %>%
+Density_trees_sp_ft <- Trees_data %>%
   group_by(Monitoring.Status, MacroPlot.Name, Status, Species.Symbol) %>%
   #count trees in each plot (Count), calculate BA per ac of L/D tree species in each plot using the individual tree's BA_ft2 (BA_ft2.ac) (area: 50mx20m = 1000m2 = 0.247105)
   summarise(Count = n(), BA_ft2.ac = sum(BA_ft2)/0.247105) %>%
@@ -918,10 +917,12 @@ Density_trees_grt6_ft_summary <- Density_trees_grt6_ft %>%
 
 ## Plotting DBH
 ```{r}
+#DBH for all monitoring statuses and live/dead status
 hist1 <- ggplot(Trees_data, aes(x=DBH*0.39370079)) +
   geom_histogram(binwidth=1) +
   facet_grid(Status~Monitoring.Status, scales = "free")
 hist1
+
 ```
 
 ## Plotting Basal Area
@@ -954,6 +955,9 @@ t2 <- ggplot(prepost_trees_sp_ft, aes(x=Monitoring.Status, y=BA_ft2.ac, fill=Sta
   geom_vline(xintercept = 1.5, linetype="dashed", color = "red", linewidth = 0.5) + 
   facet_wrap(~Species.Symbol, scales="free_y")
 t2
+
+#by size class
+t3 <- ggplot(Trees_data, aes())
 ```
 
 
