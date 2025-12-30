@@ -3,9 +3,6 @@ title: "Create FEM Annual Report Tables"
 subtitle: "SEKI Admin Unit Example - adapted from S. Stehn AK code"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
-  word_document:
-    toc: true
-    toc_depth: '2'
   html_document:
     toc: true
     toc_float: true
@@ -88,7 +85,7 @@ mp_data_date <- paste0(format(mp_file_info$mtime, "%b %d"), ", ",
 All admin unit Sample Event Reports return a 9-column .csv with a default filename of "SampleEventReport.csv" and the following column headers. The data summarized herein was exported from FFI on [`r se_data_date`]{style="color:blue"}.
 
 ```{r input sampel event data format, include=TRUE}
-se_header_list <- colnames(sample_events)
+se_header_list <- colnames(SEKI_sample_events)
 print(se_header_list)
 
 ```
@@ -96,7 +93,7 @@ print(se_header_list)
 All admin unit Macroplot Reports from FFI produce a 39-column .csv with a default filename of "MacroPlotReport.csv" and the following column headers. The data summarized herein was exported from FFI on [`r mp_data_date`]{style="color:blue"}.
 
 ```{r input macroplot data format, include=TRUE}
-mp_header_list <- colnames(macroplots)
+mp_header_list <- colnames(SEKI_macroplots)
 print(mp_header_list)
 
 ```
