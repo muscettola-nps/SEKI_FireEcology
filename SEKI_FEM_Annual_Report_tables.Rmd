@@ -16,6 +16,7 @@ output:
 
 This code summarizes plot work by a Fire Ecology Program as represented in FFI. The included tables and enclosed code allow a user to quickly view the overall status project status in an FFI admin unit. The code summarizes records in the Sample Event Report and MacroPlot Report that can be downloaded via the Utilities menu on the Project Management tab on the FFI Remote App Server.
 
+
 ```{r setup, include=FALSE}
 ### Set up Environment
 ## Load Packages
@@ -24,7 +25,6 @@ library(tidyverse)
 library(DT)
 library(kableExtra)
 library(fs)
-library(here)
 
 ## Markdown Options
 knitr::opts_chunk$set(echo = FALSE, error = FALSE,
