@@ -1,0 +1,314 @@
+---
+title: "Create FEM Annual Report Tables"
+subtitle: "SEKI Admin Unit Example - adapted from S. Stehn AK code"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document:
+    toc: true
+    toc_depth: '2'
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    toc_collapsed: false
+    code_download: true
+---
+
+This code summarizes plot work by a Fire Ecology Program as represented in FFI. The included tables and enclosed code allow a user to quickly view the overall status project status in an FFI admin unit. The code summarizes records in the Sample Event Report and MacroPlot Report that can be downloaded via the Utilities menu on the Project Management tab on the FFI Remote App Server.
+
+```{r setup, include=FALSE}
+### Set up Environment
+## Load Packages
+library(stringr)
+library(tidyverse)
+library(DT)
+library(kableExtra)
+library(fs)
+library(here)
+
+## Markdown Options
+knitr::opts_chunk$set(echo = FALSE, error = FALSE,
+                      warnings = FALSE, message = FALSE)
+```
+
+```{r import data, include=FALSE}
+### Import Data
+## Set Working Directory
+wDir <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/SEKISampleEvents/"
+wDir
+
+## Load Data
+# In FFI, in the Project Management tab, Utilities menu, select Sample Event Report to export sample event info for all projects.
+# Read in the exported Sample Event Report(s)
+SEKI_sample_events <- read.csv(path(wDir,"2025SEKISampleEventReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+DEPO_sample_events <- read.csv(path(wDir,"2025DEPOSampleEventReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+SS_sample_events <- read.csv(path(wDir,"2025SSSampleEventReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+Drt_sample_events <- read.csv(path(wDir,"2025DroughtSampleEventReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+
+
+# Collect file date (e.g., when the SampleEventReport was downloaded)
+se_file_info <- file.info(path(wDir,"2025SEKISampleEventReport.csv"))
+se_data_date <- paste0(format(se_file_info$mtime, "%b %d"), ", ",
+                       format(se_file_info$mtime, "%Y"))
+
+# In FFI, in the Project Management tab, Utilities menu, select MacroPlot Report to export macroplot info for all projects.
+SEKI_macroplots <- read.csv(path(wDir,"2025SEKIMacroPlotReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+DEPO_macroplots <- read.csv(path(wDir,"2025DEPOMacroPlotReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+SS_macroplots <- read.csv(path(wDir,"2025SSMacroPlotReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+Drt_macroplots <- read.csv(path(wDir,"2025DroughtMacroPlotReport.csv"),
+                   na.strings = c("","NA","N/A"), # replace blanks and text NA as actual NA
+                   fileEncoding = 'UTF-8-BOM')
+
+# separate header rows from macroplot report
+macroplot_headers <- SEKI_macroplots %>% 
+  filter(is.na(SampleEventDate)) %>% 
+  mutate(across(where(is.character), str_trim)) # remove trailing/leading whitespace
+
+# Collect file date (e.g., when the MacroPlotReport was downloaded)
+mp_file_info <- file.info(path(wDir,"2025SEKIMacroPlotReport.csv"))
+mp_data_date <- paste0(format(mp_file_info$mtime, "%b %d"), ", ",
+                                 format(mp_file_info$mtime, "%Y"))
+
+```
+
+All admin unit Sample Event Reports return a 9-column .csv with a default filename of "SampleEventReport.csv" and the following column headers. The data summarized herein was exported from FFI on [`r se_data_date`]{style="color:blue"}.
+
+```{r input sampel event data format, include=TRUE}
+se_header_list <- colnames(sample_events)
+print(se_header_list)
+
+```
+
+All admin unit Macroplot Reports from FFI produce a 39-column .csv with a default filename of "MacroPlotReport.csv" and the following column headers. The data summarized herein was exported from FFI on [`r mp_data_date`]{style="color:blue"}.
+
+```{r input macroplot data format, include=TRUE}
+mp_header_list <- colnames(macroplots)
+print(mp_header_list)
+
+```
+
+```{r data tidying and merging, include=FALSE}
+#### Manipulate the data from the exported Sample Event Reports individually so that when the dataframes are merged it can all be processed at once with minimal edits to the source code. 
+
+## Starting with the SEKI FMH plots
+# the nuances with this data set are: AdministrationUnit_Name = SEKI, ProjectUnit_Name refers to the veg type and also includes "decomissioned" plots that need to be removed, the "purpose" is either burn or control, and the plot types are all FMH. In order to get the plot type, we need to use the prefix of the ProjectUnit_Name to differentiate between forest (F) and brush (B) plots
+toremove <- c("Abandoned FMH Plots", "ARME2", "ARPA2", "CADE2", "IN-ACTIVE", "NULLNULL", "SEGI2", "FTHIN")
+
+SEKI_sample_events2 <- SEKI_sample_events %>%
+  filter(!ProjectUnit_Name %in% toremove) %>% # decomissioned/duplicate projects
+   mutate(Type = case_when(
+    startsWith(ProjectUnit_Name, "B") ~ "FMH Brush plot", 
+    startsWith(ProjectUnit_Name, "F") ~ "FMH Forest plot")) %>%
+  #rename monitoring type so that it is more readable
+  mutate(ProjectUnit_Name = case_when(
+    grepl("ADFA", ProjectUnit_Name) ~ "Chamise chaparral (ADFA)",
+    grepl("ARME", ProjectUnit_Name) ~ "Mixed chaparral (ARME)",
+    grepl("ARPA|ARTR", ProjectUnit_Name) ~ "Montane chaparral/sagebrush (ARPA, ARTR)",
+    grepl("CEBE", ProjectUnit_Name) ~ "Mountain mahogany chaparral (CEBE)",
+    grepl("ABCO", ProjectUnit_Name) ~ "White fir-mixed conifer forest (ABCO)",
+    grepl("ABMA", ProjectUnit_Name) ~ "Red fir forest (ABMA)",
+    grepl("CADE", ProjectUnit_Name) ~ "Low elevation-mixed conifer forest (CADE)",
+    grepl("PIBA", ProjectUnit_Name) ~ "Foxtail pine forest (PIBA)",
+    grepl("PIPO|PIJE", ProjectUnit_Name) ~ "Ponderosa pine-mixed conifer forest (PIPO, PIJE)",
+    grepl("QUDO", ProjectUnit_Name) ~ "Blue oak woodland (QUDO)",
+    grepl("QUKE", ProjectUnit_Name) ~ "Black oak forest (QUKE)",
+    grepl("SEGI", ProjectUnit_Name) ~ "Giant sequoia-mixed conifer forest (SEGI)",
+    grepl("THIN", ProjectUnit_Name) ~ "Mechanical thinning treatment (THIN)",
+  )) 
+  
+## Now for DEPO FMH plots
+# the nuances with this data set are: AdministrationUnit_Name = DEPO, one plot (FTHIN1T08:09) is in two project units and needs to be un-duplicated, ProjectUnit_Name refers to the purpose of the plots, which is either Rainbow Postfire or Thin, the plot types are all FMH Forest plots. 
+DEPO_sample_events2 <- DEPO_sample_events %>%
+  filter(!ProjectUnit_Name %in% toremove) %>% # remove duplicate projects
+  mutate(ProjectUnit_Name = substr(MacroPlot_Name, 1, 7)) %>%
+  mutate(Type = "FMH Forest plot") %>%
+  mutate(ProjectUnit_Name = case_when(
+    grepl("THIN", ProjectUnit_Name) ~ "Mechanical thinning treatment (THIN)",
+    grepl("DEPO", ProjectUnit_Name) ~ "Rainbow Postfire"
+  ))
+  
+## Grant Grove Soundscape plots 
+# nuances with this data set are: this is just the Grant Grove subset of soundscape plots - there were other soundscape plots installed in other parts of the park, but these soundscape plots are being revisited to supplement the lack of FMH plots in Rx units at Grant Grove.  AdministrationUnit_Name = "GG Soundscapes" needs to be changed to SEKI, there are no duplicated plots/project units, ProjectUnit_Name = GG Soundscape, the plot types are all Soundscape
+SS_sample_events2 <- SS_sample_events %>%
+  mutate(AdministrationUnit_Name = "SEKI") %>%
+  mutate(Type = "Soundscape plot - trees, seedlings, fuels, burn severity, understory species composition") %>%
+  mutate(ProjectUnit_Name = "Grant Grove")
+
+## Finally the Drought supplemental plots
+# nuances with this data set are: AdministrationUnit_Name = SEKI Drought Supplemental, ProjectUnit_Name includes "the"D" for drought plot, veg type (i.e. ABCO, PICO, etc.), and "Sup" for supplemental plots, and the suffix of the MacroPlot_Name indicates whether it had burned before it was installed (U = unburned, B = burned).
+Drt_sample_events2 <- Drt_sample_events %>%
+  mutate(AdministrationUnit_Name = "SEKI") %>%
+  mutate(Type = "Drought plot - trees and understory species composition") %>%
+  mutate(temp = str_sub(MacroPlot_Name, -1, -1)) %>%
+  mutate(ProjectUnit_Name = paste0(temp,ProjectUnit_Name)) %>%
+  select(!temp) %>%
+  mutate(ProjectUnit_Name = case_when(
+    grepl("UDABCO", ProjectUnit_Name) ~ "White fir-mixed conifer forest (ABCO) - unburned when installed",
+    grepl("BDABCO", ProjectUnit_Name) ~ "White fir-mixed conifer forest (ABCO) - burned when installed",
+    grepl("UDABMA", ProjectUnit_Name) ~ "Red fir forest (ABMA) - unburned when installed",
+    grepl("BDABMA", ProjectUnit_Name) ~ "Red fir forest (ABMA) - burned when installed",
+    grepl("UDCADE", ProjectUnit_Name) ~ "Low elevation-mixed conifer forest (CADE) - unburned when installed",
+    grepl("BDCADE", ProjectUnit_Name) ~ "Low elevation-mixed conifer forest (CADE) - burned when installed",
+    grepl("UDPIJE|UDPIPO", ProjectUnit_Name) ~ "Ponderosa pine-mixed conifer forest (PIPO, PIJE) - unburned when installed",
+    grepl("BDPIJE|BDPIPO", ProjectUnit_Name) ~ "Ponderosa pine-mixed conifer forest (PIPO, PIJE) - burned when installed",
+    grepl("UDPILA", ProjectUnit_Name) ~ "Sugar pine-mixed conifer forest (PILA) - unburned when installed",
+    grepl("BDPILA", ProjectUnit_Name) ~ "Sugar pine-mixed conifer forest (PILA) - burned when installed",
+    grepl("UDQUKE", ProjectUnit_Name) ~ "Black oak forest (QUKE) - unburned when installed",
+    grepl("UDSEGI", ProjectUnit_Name) ~ "Giant sequoia-mixed conifer forest (SEGI) - unburned when installed",
+    grepl("BDSEGI", ProjectUnit_Name) ~ "Giant sequoia-mixed conifer forest (SEGI) - burned when installed"
+  ))
+
+### merge the data frames 
+merged_sample_events <- rbind(SEKI_sample_events2, DEPO_sample_events2, SS_sample_events2, Drt_sample_events2)
+
+### remove original dataframes to save up on space
+rm(SEKI_sample_events, SEKI_sample_events2, DEPO_sample_events, DEPO_sample_events2, SS_sample_events, SS_sample_events2, Drt_sample_events, Drt_sample_events2)
+
+
+### merge the macroplot data frames
+merged_macroplots <- rbind(SEKI_macroplots, DEPO_macroplots, SS_macroplots, Drt_macroplots)
+```
+
+```{r manipulate data, include=FALSE}
+#### Manipulate and add columns to data
+## Create column for Park code via break down of AdministrationUnit_Name
+sample_events_final <- merged_sample_events %>% 
+  # filter data for only visited plots
+  filter(Visited == "Y") %>% 
+  #remove trailing/leading whitespace
+  mutate(across(where(is.character), str_trim)) %>% #
+  mutate(Park = AdministrationUnit_Name) %>% 
+  # separate Date column into Date and Time columns
+  separate(SampleEvent_Date, sep = " ", into = c("Date", "Time", "Period"), remove = FALSE) %>% 
+  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>% 
+  select(!c("Month", "Day", "Period", "Time")) %>% 
+  # remove unneeded columns
+  filter(!is.na(ProjectUnit_Name)) %>% 
+  mutate(SampleEvent_Date = as.Date(Date, format = "%m/%d/%Y")) %>%
+  ## Assign park name
+  mutate(Park_Name = case_when(Park == "SEKI"~"Sequoia & Kings Canyon",
+                               Park == "DEPO"~"Devils Postpile",
+                               TRUE~NA))
+
+# Remove intermediary data frames to clean up workspace
+remove(merged_sample_events)
+
+```
+
+# Table 1. Fire Effects Plot Workload
+
+The table below summarizes all projects with plots sampled in the current year.
+
+```{r year summ}
+## Summarise yearly plot activity
+# gather info needed from sample event and macroplot tables
+table1_data <- sample_events_final %>%
+  group_by(MacroPlot_Name, SampleEvent_Date) %>% 
+  slice_head() %>% # select only first protocol for each sample event
+  select(Park_Name, ProjectUnit_Name, MacroPlot_Name, Year, SampleEvent_Date, Type)
+
+# reduce to project summary with target year totals
+table1_data_reduced <- table1_data %>% 
+  group_by(Park_Name, ProjectUnit_Name, Type) %>% 
+  summarise(first_year = min(Year),
+            last_year = max(Year),
+            n_total_plots = n_distinct(MacroPlot_Name),
+            n_current_yr_plots = n_distinct(MacroPlot_Name[Year == format(Sys.Date(), "%Y")])) # designate current year
+
+# filters project summary by those with plots this year
+target_year_summ <- table1_data_reduced %>% 
+  filter(n_current_yr_plots > 0) %>% 
+  group_by(Park_Name, ProjectUnit_Name, Type) %>%
+  summarise(`Years Data Collected<br>(start-end)` = paste0(first_year, "-", last_year),
+            `Annual Total<br>(2025)` = n_current_yr_plots,
+            `Total Plots` = n_total_plots,
+            .groups = "drop") %>%
+  rename(`Park` = Park_Name,
+         `Monitoring Unit` = ProjectUnit_Name,
+         `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)` = Type) %>%
+  arrange(`Park`, `Monitoring Unit`, `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)`, `Years Data Collected<br>(start-end)`, `Annual Total<br>(2025)`, `Total Plots`) %>% 
+  mutate_all(as.character)
+
+# Calculate totals
+year_summ_totals <- target_year_summ %>%
+  mutate(`Park` = "Total",
+         `Monitoring Unit` = "",
+         `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)` = "",
+         `Years Data Collected<br>(start-end)` = "",
+         `Annual Total<br>(2025)` = sum(as.numeric(`Annual Total<br>(2025)`)),
+         `Total Plots` = sum(as.numeric(`Total Plots`))) %>% 
+  mutate_all(as.character) %>% 
+  slice_head()
+
+# Bind the totals row to the original data frame
+target_year_summ_w_totals <- bind_rows(target_year_summ, year_summ_totals)
+
+##for HTML output
+target_year_summ_w_totals %>%
+  kbl(escape = FALSE, # to render line break in column headers
+      align = "lllccc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),
+                position = "left", fixed_thead = T) %>%
+  row_spec(0, font_size = 14, bold = TRUE) %>%
+  column_spec(3:6,extra_css = "vertical-align:middle;") %>% 
+  row_spec(nrow(target_year_summ_w_totals), font_size = 14, bold = TRUE)
+
+##for word document
+#kable(target_year_summ_w_totals)
+
+```
+
+# Table B-1. All Fire Effects Plots Established
+
+This table, found in Appendix B, summarizes the number of plots by type in each monitoring unit.
+
+```{r all plot summ, warning=FALSE}
+## Summarise plot activity
+all_year_summ <- table1_data_reduced %>% 
+  group_by(Park_Name, ProjectUnit_Name, Type) %>%
+  summarise(`Years Data Collected<br>(start-end)` = paste0(first_year, "-", last_year),
+            `Total Plots` = n_total_plots,
+            .groups = "drop") %>%
+  rename(`Park` = Park_Name,
+         `Monitoring Unit` = ProjectUnit_Name,
+         `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)` = Type) %>%
+  arrange(`Park`, `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)`, `Monitoring Unit`) %>% 
+  mutate_all(as.character)
+
+# Calculate totals
+all_year_summ_totals <- all_year_summ %>%
+  mutate(`Park` = "Total",
+         `Monitoring Unit` = "",
+         `Plot Type (FMH Forest/Brush/Grass plot, photo point, Rapid Assessment, CBI, etc.)` = "",
+         `Years Data Collected<br>(start-end)` = "",
+         `Total Plots` = sum(as.numeric(`Total Plots`))) %>% 
+  mutate_all(as.character) %>% 
+  slice_head()
+
+# Bind the totals row to the original data frame
+all_year_summ_w_totals <- bind_rows(all_year_summ, all_year_summ_totals)
+
+all_year_summ_w_totals %>%
+  kbl(escape = FALSE, # to render line break in column headers
+      align = "lllcc") %>%
+  kable_styling(bootstrap_options = c("striped","condensed"),
+                position = "left", fixed_thead = T) %>%
+  row_spec(0, font_size = 14, bold = TRUE) %>%
+  column_spec(3:5,extra_css = "vertical-align:middle;") %>% 
+  row_spec(nrow(all_year_summ_w_totals), font_size = 14, bold = TRUE)
+
+```
