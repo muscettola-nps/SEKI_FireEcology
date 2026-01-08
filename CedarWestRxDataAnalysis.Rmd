@@ -41,22 +41,22 @@ library(boot)
 library(DT)
 library(emmeans)
 library(fs)
-library(flexdashboard)
-library(ggrepel)
+# library(flexdashboard)
+# library(ggrepel)
 library(here)
 library(htmltools)
 library(kableExtra)
 library(knitr)
 library(lubridate)
-library(multcomp)
-library(multcompView)
+#library(multcomp)
+#library(multcompView)
 # library(patchwork)
-library(plotly)
+#library(plotly)
 library(purrr)
-library(reactable)
-library(shiny)
+#library(reactable)
+#library(shiny)
 library(stringr)
-library(stringdist)
+#library(stringdist)
 
 #set working directory
 path_data <- "S:/Protection/Fire/Ecology/effects/FireEffects_WorkingFolder/Captain Core Documents/Data_Analysis/Data/2025CedarWestRx/Raw/"
@@ -263,18 +263,18 @@ rm(Trees, Trees_raw)
 ### Save tidy data as csv's 
 ```{r}
 #save tidy data as csv
-#write.csv(FWD_data, paste0(path_out, "CGWestRx_FWD_data.csv"))
-#write.csv(FWD_header, paste0(path_out, "CGWestRx_FWD_header.csv"))
-#write.csv(CWD_data, paste0(path_out, "CGWestRx_CWD_data.csv"))
-#write.csv(CWD_header, paste0(path_out, "CGWestRx_CWD_header.csv"))
-#write.csv(DuffLitt_data, paste0(path_out, "CGWestRx_DuffLitt_data.csv"))
-#write.csv(DuffLitt_header, paste0(path_out, "CGWestRx_DuffLitt_header.csv"))
-#write.csv(PostBurnSev_data, paste0(path_out, "CGWestRx_PostBurnSev_data.csv"))
-#write.csv(PostBurnSev_header, paste0(path_out, "CGWestRx_PostBurnSev_header.csv"))
-#write.csv(Seedlings_data, paste0(path_out, "CGWestRx_Seedlings_data.csv"))
-#write.csv(Seedlings_header, paste0(path_out, "CGWestRx_Seedlings_header.csv"))
-#write.csv(Trees_data, paste0(path_out, "CGWestRx_Trees_data.csv"))
-#write.csv(Trees_header, paste0(path_out, "CGWestRx_Trees_header.csv"))
+write.csv(FWD_data, paste0(path_out, "CGWestRx_FWD_data.csv"))
+write.csv(FWD_header, paste0(path_out, "CGWestRx_FWD_header.csv"))
+write.csv(CWD_data, paste0(path_out, "CGWestRx_CWD_data.csv"))
+write.csv(CWD_header, paste0(path_out, "CGWestRx_CWD_header.csv"))
+write.csv(DuffLitt_data, paste0(path_out, "CGWestRx_DuffLitt_data.csv"))
+write.csv(DuffLitt_header, paste0(path_out, "CGWestRx_DuffLitt_header.csv"))
+write.csv(PostBurnSev_data, paste0(path_out, "CGWestRx_PostBurnSev_data.csv"))
+write.csv(PostBurnSev_header, paste0(path_out, "CGWestRx_PostBurnSev_header.csv"))
+write.csv(Seedlings_data, paste0(path_out, "CGWestRx_Seedlings_data.csv"))
+write.csv(Seedlings_header, paste0(path_out, "CGWestRx_Seedlings_header.csv"))
+write.csv(Trees_data, paste0(path_out, "CGWestRx_Trees_data.csv"))
+write.csv(Trees_header, paste0(path_out, "CGWestRx_Trees_header.csv"))
 ```
 
 # Calculating Fuel Loading
@@ -1015,6 +1015,25 @@ t6
 Here we need to use data from the individual trees (rather than summaries used above). First let's extract only the Pre03 and Post03 trees from the original trees dataset (Trees_data)
 ```{r}
 prepost_indiv_trees <- filter(Trees_data, Monitoring.Status == "Pre03" | Monitoring.Status == "Post03")
+
+#summarize scorch height, scorch %, and char height (average and se)
+TreeBS <- Trees_data %>%
+  filter(str_detect(Monitoring.Status, "Post")) %>%
+  group_by(Monitoring.Status) %>%
+  summarise(avg_ScorchHt = mean(ScorchHt, na.rm=TRUE),
+            sd_ScorchHt = sd(ScorchHt, na.rm=TRUE),
+            min_ScorchHt = min(ScorchHt, na.rm=TRUE),
+            max_ScorchHt = max(ScorchHt, na.rm=TRUE),
+            avg_CrScPct = mean(CrScPct, na.rm=TRUE),
+            sd_CrScPct = sd(CrScPct, na.rm=TRUE),
+            min_CrScPct = min(CrScPct, na.rm=TRUE),
+            max_CrScPct = max(CrScPct, na.rm=TRUE),
+            avg_CharHt = mean(CharHt, na.rm=TRUE),
+            sd_CharHt = sd(CharHt, na.rm=TRUE),
+            min_CharHt = min(CharHt, na.rm=TRUE),
+            max_CharHt = max(CharHt, na.rm=TRUE))
+
+write.csv(TreeBS, paste0(path_out, "CGWest_TreeBurnSeveritysummary.csv"))
 ```
 
 ### Plot Scorch
@@ -1036,5 +1055,24 @@ s1
 
 #Height to Live Crown (did the live canopy rise?)
 
+```
+
+## PostBurn Substrate and Vegetation Severity
+
+```{r}
+PostBurnSev_summary <- PostBurnSev_data %>%
+  group_by(Monitoring.Status) %>%
+  summarise(avg_Veg = mean(Veg, na.rm=TRUE),
+            median_Veg = median(Veg),
+            sd_Veg = sd(Veg, na.rm=TRUE),
+            min_Veg = min(Veg, na.rm=TRUE),
+            max_Veg = max(Veg, na.rm=TRUE),
+            avg_Sub = mean(Sub, na.rm=TRUE),
+            median_Sub = median(Sub),
+            sd_Sub = sd(Sub, na.rm=TRUE),
+            min_Sub = min(Sub, na.rm=TRUE),
+            max_Sub = max(Sub, na.rm=TRUE))
+
+write.csv(PostBurnSev_summary, paste0(path_out, "CGWestRx_PostBurnSev_summary.csv"))
 ```
 
