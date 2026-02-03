@@ -1,0 +1,25 @@
+---
+title: "ShortReburnIntervals"
+author: "Isabella Muscettola"
+date: "2026-02-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Loading Data and Libraries
+```{r}
+# install packages (if needed)
+#install.packages("tidyverse", "Rtools", "dplyr", "knitr", "writexl", "ggplot2", "vegan", "patchwork")
+install.packages("patchwork")
+
+#load packages
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(paletteer)
+library(vegan)
+library(patchwork)
+```
