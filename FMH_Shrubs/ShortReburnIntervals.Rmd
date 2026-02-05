@@ -36,20 +36,42 @@ path_figures <- "C:/Users/imuscettola/OneDrive - DOI/Captain_9/Data_Analysis/Fig
 ## Load Tidied Data
 ```{r}
 CoverPoints_data <- read.csv(paste0(path_data, "2_working/Points_data.csv"))
+CoverPoints_data <-  mutate(CoverPoints_data, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 CoverPoints_header <- read.csv(paste0(path_data, "2_working/Points_header.csv"))
 SpComp_data <- read.csv(paste0(path_data, "2_working/SpComp_data.csv"))
 SpComp_header <- read.csv(paste0(path_data, "2_working/SpComp_header.csv"))
 DensityBelts_data <- read.csv(paste0(path_data, "2_working/DensityBelts_data.csv"))
+DensityBelts_data <-  mutate(DensityBelts_data, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 DensityBelts_header <- read.csv(paste0(path_data, "2_working/DensityBelts_header.csv"))
 PostBurnSev_data <- read.csv(paste0(path_data, "2_working/PostBurnSev_data.csv"))
 PostBurnSev_header <- read.csv(paste0(path_data, "2_working/PostBurnSev_header.csv"))
 SpList <- read.csv(paste0(path_data, "2_working/SpList.csv"))
 Points_summarybyspecies <- read.csv(paste0(path_data, "2_working/Points_summarybyspecies.csv"))
+Points_summarybyspecies <-  mutate(Points_summarybyspecies, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 Points_summarybylifeform <- read.csv(paste0(path_data, "2_working/Points_summarybylifeform.csv"))
-SpRichness_byPlotRead <- read.csv(paste0(path_data, "2_working/UniqueSpecies_byPlotRead.csv"))
+Points_summarybylifeform <-  mutate(Points_summarybylifeform, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
+SpRichness_byPlotRead <- read.csv(paste0(path_data, "2_working/UniqueSpecies_byPlotRead.csv")) 
+SpRichness_byPlotRead <-  mutate(SpRichness_byPlotRead, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 Points_summarybyspeciesandstatus <- read.csv(paste0(path_data, "2_working/Points_summarybyspeciesandstatus.csv"))
+Points_summarybyspeciesandstatus <-  mutate(Points_summarybyspeciesandstatus, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 Points_summarybylifeformandstatus <- read.csv(paste0(path_data, "2_working/Points_summarybylifeformandstatus.csv"))
+Points_summarybylifeformandstatus <-  mutate(Points_summarybylifeformandstatus, FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
 ```
+
 
 ## Data Summarizing by Veg Type
 ```{r}
@@ -59,21 +81,20 @@ Points_summarybylifeformandstatus <- read.csv(paste0(path_data, "2_working/Point
 CEBE_summarybylifeform <- Points_summarybylifeform %>%
   filter(MonitoringType=="BCEBE")
 ## summary by lifeform and status
-CEBE_summarybylifeformandstatus <- filter(Points_summarybylifeformandstatus, MonitoringType=="BCEBE")
+CEBE_summarybylifeformandstatus <- Points_summarybylifeformandstatus %>%
+  filter(MonitoringType=="BCEBE")
 ## summary by species
 CEBE_summarybyspecies <- Points_summarybyspecies %>%
-  filter(MonitoringType=="BCEBE") %>%
-  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
-                                 FireHistory=="CoffeePot" ~ "CoffeePot",
-                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
+  filter(MonitoringType=="BCEBE")
 
 
 ## CEBE specific - summary by species and status
 CEBE_summarybyspeciesandstatus <- Points_summarybyspeciesandstatus %>%
-  filter(MonitoringType=="BCEBE")  %>%
-  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
-                                 FireHistory=="CoffeePot" ~ "CoffeePot",
-                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
+  filter(MonitoringType=="BCEBE")
+
+CEBE_CoverPoints <- CoverPoints_data %>%
+  filter(MonitoringType=="BCEBE")
+
 
 ```
 
@@ -113,7 +134,7 @@ ggplot(Points_summarybylifeform, aes(x=Year, y=perc_of_hits, fill=Prf..Lifeform)
 #ggsave(paste0(path_figures, "LifeformAbundancebyPlotandYear.png"), width = 14, height = 10, limitsize=FALSE)
 ```
 
-## Tracking Shrub Abundance Across Time 
+## Tracking Shrub Abundance and Height Across Time 
 
 How has the abundance of shrubs changed across time, particularly with the occurrence of fire? 
 
@@ -252,12 +273,126 @@ c <- ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$FireHistory=="CoffeePo
   scale_fill_manual(values=c("Forb/herb"="#774762FF", "Graminoid"="#BA6E1DFF", "Shrub"="#D6BB3BFF", "Tree"="#755028FF", "Undefined"="#585854FF", "Vine"="#205F4BFF"))
 
 a + b + c
-#ggsave(paste0(path_figures, "CEBE_LifeformAbundancebyPlotandFireHistory.png"), width = 8, height=6, limitsize=FALSE)
+#ggsave(paste0(path_figures, "CEBE_LifeformAbundancebyPlotandFireHistory.png"), width = 10, height=6, limitsize=FALSE)
 
 ```
 
 ### Height of Shrubs colored by living or dead by fire history
+Hypothesis is that for short reburn intervals (Castle+CoffeePot) the shrub regen is lower height than regular reburn intervals (CoffeePot only)
+
 ```{r}
-#if we want to make barplots 
+# All Lifeform Height by fire history 
+ggplot(CEBE_CoverPoints, aes(x=FireHistory, y=Height, fill=Prf..Lifeform), fill=Prf..Lifeform) +
+  geom_boxplot() +
+  labs(title="CEBE Plots - Height by Veg Type", x="Fire History", y="Height (m)", fill="Veg Type") +
+  scale_x_discrete(limits=c("Castle", "Castle and CoffeePot", "CoffeePot"), labels = function(x) gsub(" ", "\n", x)) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=14), axis.title.x=element_text(size=20), axis.text.y=element_text(size=14), axis.title.y=element_text(size=20), legend.title=element_text(size=20), legend.text=element_text(size=14), plot.title=element_text(size=20, face="bold")) +
+  scale_fill_manual(values=c("Forb/herb"="#774762FF", "Graminoid"="#BA6E1DFF", "Shrub"="#D6BB3BFF", "Tree"="#755028FF", "Undefined"="#585854FF", "Vine"="#205F4BFF")) 
+
+#ggsave(paste0(path_figures, "CEBE_LifeformHtbyFireHistory.png"), width = 7, height=5, limitsize=FALSE)
+
 ```
+
+Now let's look only at the shrubs
+```{r}
+ggplot(CEBE_CoverPoints[CEBE_CoverPoints$Prf..Lifeform=="Shrub", ], aes(x=FireHistory, y=Height, fill=Status)) +
+  geom_boxplot() +
+  labs(title="CEBE Plots - Shrub Height by Status", x="Fire History", y="Height (m)", fill="Status") +
+  scale_x_discrete(limits=c("Castle", "Castle and CoffeePot", "CoffeePot"), labels = function(x) gsub(" ", "\n", x)) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=14), axis.title.x=element_text(size=20), axis.text.y=element_text(size=14), axis.title.y=element_text(size=20), legend.title=element_text(size=20), legend.text=element_text(size=14), plot.title=element_text(size=20, face="bold")) +
+  scale_fill_manual(values = c("D" = "#707070", "L" = "#008B00"), labels=c("D"="Dead", "L"="Live"))
+
+#ggsave(paste0(path_figures, "CEBE_ShrubHtbyFireHistory.png"), width = 7, height=5, limitsize=FALSE)
+```
+
+
+# Shrub Density by Fire History
+
+## Wrangling Density Belts Shrub Data
+```{r}
+#CEBE specific DensityBelts
+CEBE_DensityBelts <- filter(DensityBelts_data, MonitoringType=="BCEBE")
+
+#
+CEBE_Densitybyspecies <- DensityBelts_data %>%
+  filter(MonitoringType=="BCEBE") %>%
+  complete(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, fill=list(Count=0)) %>%
+  group_by(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol) %>%
+  summarise(totalcnt=sum(Count, na.rm=TRUE)) %>%
+  mutate(density.m2=totalcnt/30, density.ac=totalcnt/0.007413) %>%
+  merge(., SpList, by="Species.Symbol")
+#
+CEBE_Densitybyspeciesandstatus <- DensityBelts_data %>%
+  filter(MonitoringType=="BCEBE") %>%
+  complete(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, Status, fill=list(Count=0)) %>%
+  group_by(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, Status) %>%
+  summarise(totalcnt=sum(Count, na.rm=TRUE)) %>%
+  mutate(density.m2=totalcnt/30, density.ac=totalcnt/0.007413) %>%
+  merge(., SpList, by="Species.Symbol")
+
+#
+CEBE_Densitybyspeciesandagecl <- DensityBelts_data %>%
+  filter(MonitoringType=="BCEBE") %>%
+  complete(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, AgeCl, fill=list(Count=0)) %>%
+  group_by(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, AgeCl) %>%
+  summarise(totalcnt=sum(Count, na.rm=TRUE)) %>%
+  mutate(density.m2=totalcnt/30, density.ac=totalcnt/0.007413) %>%
+  merge(., SpList, by="Species.Symbol")
+
+
+CEBE_Densitybyspeciesageclandstatus <- DensityBelts_data %>%
+  filter(MonitoringType=="BCEBE") %>%
+  complete(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, AgeCl, Status, fill=list(Count=0)) %>%
+  group_by(MonitoringType, MacroPlot.Name, FireHistory, Monitoring.Status, Species.Symbol, AgeCl, Status) %>%
+  summarise(totalcnt=sum(Count, na.rm=TRUE)) %>%
+  mutate(density.m2=totalcnt/30, density.ac=totalcnt/0.007413) %>%
+  merge(., SpList, by="Species.Symbol")
+
+```
+
+##Visualizations
+
+Visualize shrub density by fire history
+```{r}
+#boxplot of shrub density by species
+ggplot(CEBE_Densitybyspecies, aes(x=FireHistory, y=density.m2)) +
+  stat_summary(fun = mean, geom = "bar") +
+  labs(title="CEBE Plots - Shrub Density by Species", x="Fire History", y="Density (count/m2)", fill="Species") +
+  scale_x_discrete(limits=c("Castle", "Castle and CoffeePot", "CoffeePot"), labels = function(x) gsub(" ", "\n", x)) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=14), axis.title.x=element_text(size=20), axis.text.y=element_text(size=14), axis.title.y=element_text(size=20), legend.title=element_text(size=20), legend.text=element_text(size=14), plot.title=element_text(size=20, face="bold")) 
+
+#ggsave(paste0(path_figures, "CEBE_ShrubDensitybySpecies.png"), width = 7, height=5, limitsize=FALSE)
+
+#now by species and status
+ggplot(CEBE_Densitybyspeciesandstatus, aes(x=FireHistory, y=density.m2, fill=Status)) +
+  stat_summary(fun = mean, geom = "bar", position="stack") +
+  labs(title="CEBE Plots - Shrub Density by Species and Status", x="Fire History", y="Average Density (count/m2)", fill="Status") +
+  scale_x_discrete(limits=c("Castle", "Castle and CoffeePot", "CoffeePot"), labels = function(x) gsub(" ", "\n", x)) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=14), axis.title.x=element_text(size=20), axis.text.y=element_text(size=14), axis.title.y=element_text(size=20), legend.title=element_text(size=20), legend.text=element_text(size=14), plot.title=element_text(size=20, face="bold")) +
+  scale_fill_manual(values = c("D" = "#707070", "L" = "#008B00"), labels=c("D"="Dead", "L"="Live")) 
+  
+
+#ggsave(paste0(path_figures, "CEBE_ShrubDensitybyStatus.png"), width = 7, height=5, limitsize=FALSE)
+
+#now only looking at CEBE
+ggplot(CEBE_Densitybyspeciesandstatus[CEBE_Densitybyspeciesandstatus$Species.Symbol=="CEBE1", ], aes(x=FireHistory, y=density.m2, fill=Status)) +
+  stat_summary(fun = mean, geom = "bar", position="stack") +
+  stat_summary(fun.data=mean_se, geom="errorbar", width=0.1) +
+  labs(title="CEBE Plots - Mountain Mahogany Density by Species and Status", x="Fire History", y="Average Density (count/m2)", fill="Status") +
+  scale_x_discrete(limits=c("Castle", "Castle and CoffeePot", "CoffeePot"), labels = function(x) gsub(" ", "\n", x)) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=14), axis.title.x=element_text(size=20), axis.text.y=element_text(size=14), axis.title.y=element_text(size=20), legend.title=element_text(size=20), legend.text=element_text(size=14), plot.title=element_text(size=20, face="bold")) +
+  scale_fill_manual(values = c("D" = "#707070", "L" = "#008B00"), labels=c("D"="Dead", "L"="Live"))
+
+#ggsave(paste0(path_figures, "CEBE_CEBEDensitybyStatus_werror.png"), width=7, height=5, limitsize = FALSE)
+```
+
+```{r}
+
+```
+
 
