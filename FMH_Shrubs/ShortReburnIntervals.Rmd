@@ -31,402 +31,6 @@ path_data <- "C:/Users/imuscettola/OneDrive - DOI/Captain_9/Data_Analysis/Data/S
 path_figures <- "C:/Users/imuscettola/OneDrive - DOI/Captain_9/Data_Analysis/Figures/ShrubShortReburn/"
 ```
 
-
-# ONLY DO ONCE: Set-up 
-
-### Load Data
-```{r}
-ADFA_CoverPoints_RAW <- read.csv(paste0(path_data, "ADFA_CoverPoints.csv"))
-ADFA_DensityBelts_RAW <- read.csv(paste0(path_data, "ADFA_DensityBelts.csv"))
-ADFA_PostBurnSeverity_RAW <- read.csv(paste0(path_data, "ADFA_PostBurnSeverity.csv"))
-ADFA_SpeciesComp_RAW <- read.csv(paste0(path_data, "ADFA_SpeciesComp.csv"))
-
-CEBE_CoverPoints_RAW <- read.csv(paste0(path_data, "CEBE_CoverPoints.csv"))
-CEBE_DensityBelts_RAW <- read.csv(paste0(path_data, "CEBE_DensityBelts.csv"))
-CEBE_PostBurnSeverity_RAW <- read.csv(paste0(path_data, "CEBE_PostBurnSeverity.csv"))
-CEBE_SpeciesComp_RAW <- read.csv(paste0(path_data, "CEBE_SpeciesComp.csv"))
-
-SpList <- read.csv("C:/Users/imuscettola/OneDrive - DOI/Captain_9/Data_analysis/Data/20260203_SEKISpList.csv")
-
-#merge data from different monitoring types by Protocol
-CoverPoints_merge <- rbind(ADFA_CoverPoints_RAW, CEBE_CoverPoints_RAW)
-CoverSpComp_merge <- rbind(ADFA_SpeciesComp_RAW, CEBE_SpeciesComp_RAW)
-DensityBelts_merge <- rbind(ADFA_DensityBelts_RAW, CEBE_DensityBelts_RAW)
-PostBurnSev_merge <- rbind(ADFA_PostBurnSeverity_RAW, CEBE_PostBurnSeverity_RAW)
-
-rm(ADFA_CoverPoints_RAW, ADFA_DensityBelts_RAW, ADFA_PostBurnSeverity_RAW, ADFA_SpeciesComp_RAW,CEBE_CoverPoints_RAW, CEBE_DensityBelts_RAW, CEBE_PostBurnSeverity_RAW, CEBE_SpeciesComp_RAW)
-```
-
-## Clean up data
-FFI exports data and metadata into a single csv file. We need to separate the data from the metadata and do other tidying.
-
-
-###Species List
-```{r}
-#rename Species Symbol on Species list for subsequent dataframe merging & tidy
-SpList <- SpList %>%
-  rename(Species.Symbol=LocalSpecies_Symbol, Scientific.Name = MasterSpecies_ScientificName, Common.Name = LocalSpecies_CommonName, Family = MasterSpecies_Family, Genus = MasterSpecies_Genus, Prf..Lifeform = LocalSpecies_PreferedLifeForm, Life.Cycle = LocalSpecies_LifeCycle, Native = LocalSpecies_Nativity) %>%
-  select(Species.Symbol, Scientific.Name, Common.Name, Family, Genus, Prf..Lifeform, Life.Cycle, Native) %>%
-  mutate(Native = ifelse(Native == "True", "Native", "NonNative"))
-```
-
-### Point Intercept Vegetation Cover Protocol
-```{r}
-CoverPoints <- CoverPoints_merge %>%
-  # Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
-  #separate macroPlotName to get Monitoring type (or export data with Monitoring Type already included)
-  separate(MacroPlot.Name, sep = ":", into = c("temp", "MonitoringType", "Plot"), remove = FALSE) %>%
-  mutate(Treatment = ifelse(temp=="B", "Burn", "Control")) %>%
-  #remove extraneous columns
-  select(!c("CanopyLayer", "UV1", "UV2", "UV3", "Offset", "UV1Desc", "UV2Desc", "UV3Desc", "SaComment", "X", "temp")) %>%
-  mutate(FireHistory = case_when(MacroPlot.Name %in% c("B:BADFA1D04:012", "B:BADFA1D04:022") ~ "LP+KNP",
-                                 MacroPlot.Name %in% c("B:BADFA1D04:013", "B:BADFA1D04:014") ~ "LP+KNP+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:001", "B:BCEBE:002", "B:BCEBE:003") ~ "Castle",
-                                 MacroPlot.Name %in% c("B:BCEBE:004", "B:BCEBE:005", "B:BCEBE:006") ~ "Castle+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:007", "B:BCEBE:008", "B:BCEBE:009") ~ "CoffeePot"))
-
-# Ensure blanks in Visited column are NA
-CoverPoints$Visited[CoverPoints$Visited==""] <- NA
-
-# Filter for only data
-CoverPoints_data <- CoverPoints %>%
-  filter(is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("Time", "Index", "FieldTeam", "EntryTeam", "Visited")) %>%
-  #add information about the plant species
-  merge(., SpList, by = "Species.Symbol")
-  
-
-# Filter for only headers
-CoverPoints_header <- CoverPoints %>%
-  filter(!is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("Time", "Index", "Transect", "Point", "Tape", "Order", "Height", "Status", "Comment", "Species.Symbol"))
-  
-
-#make sure Year is numeric
-CoverPoints_header$Year <- as.numeric(CoverPoints_header$Year)
-
-rm(CoverPoints_merge, CoverPoints)
-```
-
-###Species Observed Protocol
-```{r}
-###Species Observed Protocol
-CoverSpComp <- CoverSpComp_merge %>%
-  # Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
-  #separate macroPlotName to get Monitoring type (or export data with Monitoring Type already included)
-  separate(MacroPlot.Name, sep = ":", into = c("temp", "MonitoringType", "Plot"), remove = FALSE) %>%
-  mutate(Treatment = ifelse(temp=="B", "Burn", "Control")) %>%
-  #remove extraneous columns
-  select(!c("SizeCl", "AgeCl", "Cover", "Height", "UV1", "UV2", "UV3", "UV1Desc", "UV2Desc", "UV3Desc", "SaComment", "X", "MinCovLevel", "Area", "X",  "temp")) %>%
-  mutate(FireHistory = case_when(MacroPlot.Name %in% c("B:BADFA1D04:012", "B:BADFA1D04:022") ~ "LP+KNP",
-                                 MacroPlot.Name %in% c("B:BADFA1D04:013", "B:BADFA1D04:014") ~ "LP+KNP+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:001", "B:BCEBE:002", "B:BCEBE:003") ~ "Castle",
-                                 MacroPlot.Name %in% c("B:BCEBE:004", "B:BCEBE:005", "B:BCEBE:006") ~ "Castle+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:007", "B:BCEBE:008", "B:BCEBE:009") ~ "CoffeePot"))
-
-# Ensure blanks in Visited column are NA
-CoverSpComp$Visited[CoverSpComp$Visited==""] <- NA
-
-# Filter for only data
-CoverSpComp_data <- CoverSpComp %>%
-  filter(is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("FieldTeam", "EntryTeam", "Visited", "Time")) %>%
-  #add information about the plant species
-  merge(., SpList, by = "Species.Symbol")
-
-# Filter for only headers
-CoverSpComp_header <- CoverSpComp %>%
-  filter(!is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("Time", "Index", "Status", "Comment", "Species.Symbol"))
-  
-
-rm(CoverSpComp, CoverSpComp_merge)
-```
-
-###Density Belts (Shrubs)
-```{r}
-DensityBelts <- DensityBelts_merge %>%
-  # Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
-  #separate macroPlotName to get Monitoring type (or export data with Monitoring Type already included)
-  separate(MacroPlot.Name, sep = ":", into = c("temp", "MonitoringType", "Plot"), remove = FALSE) %>%
-  mutate(Treatment = ifelse(temp=="B", "Burn", "Control")) %>%
-  #remove extraneous columns
-  select(!c("SizeCl", "SubFrac", "UV1", "UV2", "UV3", "UV1Desc", "UV2Desc",  "UV3Desc", "SaComment", "X")) %>%
-  mutate(FireHistory = case_when(MacroPlot.Name %in% c("B:BADFA1D04:012", "B:BADFA1D04:022") ~ "LP+KNP",
-                                 MacroPlot.Name %in% c("B:BADFA1D04:013", "B:BADFA1D04:014") ~ "LP+KNP+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:001", "B:BCEBE:002", "B:BCEBE:003") ~ "Castle",
-                                 MacroPlot.Name %in% c("B:BCEBE:004", "B:BCEBE:005", "B:BCEBE:006") ~ "Castle+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:007", "B:BCEBE:008", "B:BCEBE:009") ~ "CoffeePot"))
-
-# Ensure blanks in Visited column are NA
-DensityBelts$Visited[DensityBelts$Visited==""] <- NA
-
-# Filter for only data
-DensityBelts_data <- DensityBelts %>%
-  filter(is.na(Visited)) %>%
-  #make sure area is correct - this should be double checked for each data set before setting
-  mutate(TranLen = 30, TranWid = 1, Area = 30) %>% 
-  #remove unnecessary columns
-  select(!c("Index", "Height", "NumTran", "NumSubbelt", "FieldTeam", "EntryTeam", "Visited")) %>%
-  #add information about the plant species
-  merge(., SpList, by = "Species.Symbol")
-
-# Filter for only headers
-DensityBelts_header <- DensityBelts %>%
-  filter(!is.na(Visited)) %>%
-  #make sure NumSubbelt is correct - double check for your data set before setting
-  mutate(NumSubbelt = 6) %>%
-  #remove unnecessary columns
-  select(!c("Index", "Transect", "Subbelt", "Status", "AgeCl", "Count", "Height", "Species.Symbol"))
-
-rm(DensityBelts_merge, DensityBelts)
-```
-
-###Post Burn Severity
-```{r}
-PostBurnSev <- PostBurnSev_merge %>%
-  # Separate Date column into Date and Time columns
-  separate(Date, sep = " ", into = c("Date", "Time")) %>%
-  separate(Date, sep = "/", into = c("Month", "Day", "Year"), remove = FALSE) %>%
-  select(!c("Month", "Day")) %>%
-  #separate macroPlotName to get Monitoring type (or export data with Monitoring Type already included)
-  separate(MacroPlot.Name, sep = ":", into = c("temp", "MonitoringType", "Plot"), remove = FALSE) %>%
-  mutate(Treatment = ifelse(temp=="B", "Burn", "Control")) %>%
-  #remove extraneous columns
-  select(!c("UV1", "UV2", "UV3", "PlotType", "UV1Desc", "UV2Desc",  "UV3Desc", "SaComment", "X")) %>%
-  mutate(FireHistory = case_when(MacroPlot.Name %in% c("B:BADFA1D04:012", "B:BADFA1D04:022") ~ "LP+KNP",
-                                 MacroPlot.Name %in% c("B:BADFA1D04:013", "B:BADFA1D04:014") ~ "LP+KNP+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:001", "B:BCEBE:002", "B:BCEBE:003") ~ "Castle",
-                                 MacroPlot.Name %in% c("B:BCEBE:004", "B:BCEBE:005", "B:BCEBE:006") ~ "Castle+CoffeePot",
-                                 MacroPlot.Name %in% c("B:BCEBE:007", "B:BCEBE:008", "B:BCEBE:009") ~ "CoffeePot"))
-
-# Ensure blanks in Visited column are NA
-PostBurnSev$Visited[PostBurnSev$Visited==""] <- NA
-
-# Filter for only data
-PostBurnSev_data <- PostBurnSev %>%
-  filter(is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("Time", "NumTran", "TranLen", "NumPtsTran","PtArea", "FieldTeam", "EntryTeam", "Visited"))
-
-# Filter for only headers
-PostBurnSev_header <- PostBurnSev %>%
-  filter(!is.na(Visited)) %>%
-  #remove extraneous columns
-  select(!c("Time", "Index", "Transect", "Point", "TapeDist", "Veg", "Sub", "Comment"))
-
-rm(PostBurnSev_merge, PostBurnSev)
-```
-
-
-### Save merged and tidied dataframes
-```{r}
-#write.csv(CoverSpComp_data, paste0(path_data, "2_working/SpComp_data.csv"))
-#write.csv(CoverSpComp_header, paste0(path_data, "2_working/SpComp_header.csv"))
-#write.csv(CoverPoints_data, paste0(path_data, "2_working/Points_data.csv"))
-#write.csv(CoverPoints_header, paste0(path_data, "2_working/Points_header.csv"))
-#write.csv(DensityBelts_data, paste0(path_data, "2_working/DensityBelts_data.csv"))
-#write.csv(DensityBelts_header, paste0(path_data, "2_working/DensityBelts_header.csv"))
-#write.csv(PostBurnSev_data, paste0(path_data, "2_working/PostBurnSev_data.csv"))
-#write.csv(PostBurnSev_header, paste0(path_data, "2_working/PostBurnSev_header.csv"))
-#write.csv(SpList, paste0(path_data, "2_working/SpList.csv"))
-```
-
-## Data summaries
-
-### Unique Species List for ADFA and CEBE plots
-```{r}
-UniquePoints <- CoverPoints_data %>%
-  group_by(MonitoringType) %>%
-  distinct(Species.Symbol) %>%
-  #add species metadata
-  merge(., SpList, by = "Species.Symbol")
-
-UniqueSpComp <- CoverSpComp_data %>%
-  group_by(MonitoringType) %>%
-  distinct(Species.Symbol) %>%
-  #add species metadata
-  merge(., SpList, by = "Species.Symbol")
-
-ADFA_UniqueSpecies <- rbind(UniquePoints, UniqueSpComp) %>%
-  filter(MonitoringType == "BADFA1D04") %>%
-  distinct(., .keep_all=TRUE) %>%
-  #move the Monitoring Type column to the beginning of the table
-  relocate(MonitoringType, .before = 'Species.Symbol')
-
-CEBE_UniqueSpecies <- rbind(UniquePoints, UniqueSpComp) %>%
-  filter(MonitoringType == "BCEBE") %>%
-  distinct(., .keep_all=TRUE) %>%
-  #move the Monitoring Type column to the beginning of the table
-  relocate(MonitoringType, .before = 'Species.Symbol')
-
-UniqueSpecies <- rbind(UniquePoints, UniqueSpComp) %>%
-  distinct(., .keep_all=TRUE) %>%
-  #remove extraneous column
-  select(!MonitoringType)
-
-#now lets do it by plot and read
-temp <-  CoverPoints_data %>%
-  group_by(MacroPlot.Name, Monitoring.Status, Year, FireHistory) %>%
-  distinct(Species.Symbol) %>%
-  #add species metadata
-  merge(., SpList, by = "Species.Symbol")
-
-temp2 <- SpComp_data %>%
-  group_by(MacroPlot.Name, Monitoring.Status, Year, FireHistory) %>%
-  distinct(Species.Symbol) %>%
-  #add species metadata
-  merge(., SpList, by = "Species.Symbol")
-
-UniqueSpecies_byPlotRead <- rbind(temp, temp2) %>%
-  group_by(MacroPlot.Name, Monitoring.Status, Year, FireHistory) %>%
-  distinct(Species.Symbol) %>%
-  merge(., SpList, by = "Species.Symbol") %>%
-  relocate(MacroPlot.Name:Year, .before = 'Species.Symbol') %>%
-  relocate(FireHistory, .before = 'Species.Symbol')
-
-#save species lists to OneDrive
-#write.csv(ADFA_UniqueSpecies, paste0(path_data, "3_final/ADFA_LookoutPoint_UniqueSpecies.csv"))
-#write.csv(CEBE_UniqueSpecies, paste0(path_data, "3_final/CEBE_UniqueSpecies.csv"))
-#write.csv(UniqueSpecies, paste0(path_data, "3_final/ShrubShortReburn_UniqueSpecies.csv"))
-#write.csv(UniqueSpecies_byPlotRead, paste0(path_data, "2_working/UniqueSpecies_byPlotRead.csv"))
-
-rm(UniqueSpComp, UniquePoints, UniqueSpecies, ADFA_UniqueSpecies, CEBE_UniqueSpecies, temp, temp2, UniqueSpecies_byPlotRead)
-```
-
-### Summarize data
-Summarize the Point Intercept Data so that we can visualize species by abundance (% of times that species was encountered in each read)
-
-```{r}
-#count total number of hits per read
-temp <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status) %>%
-  summarise(total.hits=n())
-
-#count total number of hits of each species per read
-temp2 <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status, Species.Symbol) %>%
-  summarise(sp.hits=n())
-
-#merge summary calculations into one dataframe including species information
-CoverPoints_summary <- merge(temp, temp2, by=c("Plot", "Monitoring.Status")) %>%
-  #include species information
-  merge(., SpList, by="Species.Symbol") %>%
-  #include header information
-  merge(CoverPoints_header, ., by=c("Plot", "Monitoring.Status")) %>%
-  #calculate the % of hits for each species
-  mutate(., perc_of_hits = sp.hits/total.hits*100) 
-
-#remove temporary dataframes
-rm(temp, temp2)
-
-#save dataframe to S drive
-#write.csv(CoverPoints_summary, paste0(path_data, "2_working/Points_summarybyspecies.csv"))
-
-```
-
-Summarize the Point Intercept Data - by Species and Status (ADFA Dead vs. ADFA Live)
-
-```{r}
-#count total number of hits per read
-temp <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status) %>%
-  summarise(total.hits=n())
-
-#count total number of hits of each species per read
-temp2 <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status, Species.Symbol, Status) %>%
-  summarise(sp.hits=n())
-
-#merge summary calculations into one dataframe including species information
-CoverPoints_summary <- merge(temp, temp2, by=c("Plot", "Monitoring.Status")) %>%
-  #include species information
-  merge(., SpList, by="Species.Symbol") %>%
-  #include header information
-  merge(CoverPoints_header, ., by=c("Plot", "Monitoring.Status")) %>%
-  #calculate the % of hits for each species
-  mutate(., perc_of_hits = sp.hits/total.hits*100) 
-
-#remove temporary dataframes
-rm(temp, temp2)
-
-#save dataframe to S drive
-#write.csv(CoverPoints_summary, paste0(path_data, "2_working/Points_summarybyspeciesandstatus.csv"))
-
-```
-
-Now let's summarize the Point Intercept data according to preferred life form so that we can visualize species by abundance (% of times that species was encountered in each read)
-
-```{r}
-#count the number of hits of each lifeform for all plots and reads
-temp3 <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status, Prf..Lifeform) %>%
-  summarise(lifeform.hits=n())
-
-#count total number of hits per read
-temp <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status) %>%
-  summarise(total.hits=n())
-
-#add the metadata from the header dataframe
-Points_sum_lifeform <- merge(CoverPoints_header, temp3, by=c("Plot", "Monitoring.Status")) %>%
-  # add the column of total hits for each read
-  merge(., temp, by=c("Plot", "Monitoring.Status")) %>%
-  # calculate the % of hits for each species
-  mutate(., perc_of_hits =lifeform.hits/total.hits*100)
-
-#remove temporary dataframes
-rm(temp, temp3)
-
-#save Lifeform summary dataframe
-#write.csv(Points_sum_lifeform, paste0(path_data, "2_working/Points_summarybylifeform.csv"))
-```
-
-Summarize by lifeform and status
-```{r}
-#count the number of hits of each lifeform for all plots and reads
-temp3 <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status, Prf..Lifeform, Status) %>%
-  summarise(lifeform.hits=n())
-
-#count total number of hits per read
-temp <- CoverPoints_data %>%
-  group_by(Plot, Monitoring.Status) %>%
-  summarise(total.hits=n())
-
-#add the metadata from the header dataframe
-Points_sum_lifeform <- merge(CoverPoints_header, temp3, by=c("Plot", "Monitoring.Status")) %>%
-  # add the column of total hits for each read
-  merge(., temp, by=c("Plot", "Monitoring.Status")) %>%
-  # calculate the % of hits for each species
-  mutate(., perc_of_hits =lifeform.hits/total.hits*100)
-
-#remove temporary dataframes
-rm(temp, temp3)
-
-#save Lifeform summary dataframe
-write.csv(Points_sum_lifeform, paste0(path_data, "2_working/Points_summarybylifeformandstatus.csv"))
-```
-
-
-### Remove all data it will be loaded for each analyses from the file directory
-```{r}
-rm(CoverPoints_data, CoverPoints_header, CoverSpComp_data, CoverSpComp_header, DensityBelts_data, DensityBelts_header, PostBurnSev_data, PostBurnSev_header, SpComp_data, SpComp_header, SpList, CoverPoints_summary, Points_sum_lifeform)
-```
-
 # Start Here!
 
 ## Load Tidied Data
@@ -445,6 +49,32 @@ Points_summarybylifeform <- read.csv(paste0(path_data, "2_working/Points_summary
 SpRichness_byPlotRead <- read.csv(paste0(path_data, "2_working/UniqueSpecies_byPlotRead.csv"))
 Points_summarybyspeciesandstatus <- read.csv(paste0(path_data, "2_working/Points_summarybyspeciesandstatus.csv"))
 Points_summarybylifeformandstatus <- read.csv(paste0(path_data, "2_working/Points_summarybylifeformandstatus.csv"))
+```
+
+## Data Summarizing by Veg Type
+```{r}
+# CEBE
+
+## summary by lifeform
+CEBE_summarybylifeform <- Points_summarybylifeform %>%
+  filter(MonitoringType=="BCEBE")
+## summary by lifeform and status
+CEBE_summarybylifeformandstatus <- filter(Points_summarybylifeformandstatus, MonitoringType=="BCEBE")
+## summary by species
+CEBE_summarybyspecies <- Points_summarybyspecies %>%
+  filter(MonitoringType=="BCEBE") %>%
+  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
+
+
+## CEBE specific - summary by species and status
+CEBE_summarybyspeciesandstatus <- Points_summarybyspeciesandstatus %>%
+  filter(MonitoringType=="BCEBE")  %>%
+  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
+                                 FireHistory=="CoffeePot" ~ "CoffeePot",
+                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
+
 ```
 
 
@@ -503,12 +133,6 @@ CEBE 7-9: 2024 (CoffeePot) only
 Points_summarybylifeform$Year <- as.numeric(Points_summarybylifeform$Year)
 
 #boxplot
-CEBE_summarybylifeform <- Points_summarybylifeform %>%
-  filter(MonitoringType=="BCEBE") %>%
-  mutate(Monitoring.Status = case_when(Monitoring.Status %in% c("Re01Year05", "Re01Year5") ~ "Re01Year05",
-                                       Monitoring.Status=="Re01Year01" ~ "Re01Year01",
-                                       Monitoring.Status=="Re02Year01" ~ "Re02Year01"))
-
 ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$Prf..Lifeform=="Shrub", ], aes(x=Monitoring.Status, y=perc_of_hits, fill=FireHistory)) +
   geom_boxplot() + 
   theme_bw() + 
@@ -522,13 +146,6 @@ ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$Prf..Lifeform=="Shrub", ], 
 
 ```{r}
 # looking at live vs dead shrub cover
-CEBE_summarybylifeformandstatus <- Points_summarybylifeformandstatus %>%
-  filter(MonitoringType=="BCEBE") %>%
-  mutate(Monitoring.Status = case_when(Monitoring.Status %in% c("Re01Year05", "Re01Year5") ~ "Re01Year05",
-                                       Monitoring.Status=="Re01Year01" ~ "Re01Year01",
-                                       Monitoring.Status=="Re02Year01" ~ "Re02Year01"))
-#
-
 ggplot(CEBE_summarybylifeformandstatus[CEBE_summarybylifeformandstatus$Prf..Lifeform=="Shrub", ], aes(x=FireHistory, y=perc_of_hits, fill=Status)) +
          geom_boxplot() +
          theme_bw() +
@@ -563,21 +180,7 @@ ggplot(CEBE_summarybylifeformandstatus[CEBE_summarybylifeformandstatus$Prf..Life
 ### % Shrub Cover by Species
 #### CEBE Plots
 ```{r}
-CEBE_summarybyspecies <- Points_summarybyspecies %>%
-  filter(MonitoringType=="BCEBE") %>%
-  mutate(Monitoring.Status = case_when(Monitoring.Status %in% c("Re01Year05", "Re01Year5") ~ "Re01Year05",
-                                       Monitoring.Status=="Re01Year01" ~ "Re01Year01",
-                                       Monitoring.Status=="Re02Year01" ~ "Re02Year01")) %>%
-  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
-                                 FireHistory=="CoffeePot" ~ "CoffeePot",
-                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
-
-
-class(Points_summarybyspecies$FireHistory)
 #Bar Plot showing the abundance of Shrubs across time colored by Species and faceted by treatment
-
-#make sure year is numeric
-CEBE_summarybyspecies$Year <- as.numeric(CEBE_summarybyspecies$Year)
 
 ggplot(CEBE_summarybyspecies[CEBE_summarybyspecies$Prf..Lifeform=="Shrub", ], aes(x=FireHistory, y=perc_of_hits, fill=Species.Symbol)) + 
   geom_boxplot() + 
@@ -600,25 +203,8 @@ ggplot(CEBE_summarybyspecies[CEBE_summarybyspecies$Species.Symbol=="CEBE1", ], a
 ```
 
 ### Shrub Cover by Species and Status
-
-#### CEBE
 ```{r}
-CEBE_summarybyspeciesandstatus <- Points_summarybyspeciesandstatus %>%
-  filter(MonitoringType=="BCEBE") %>%
-  mutate(Monitoring.Status = case_when(Monitoring.Status %in% c("Re01Year05", "Re01Year5") ~ "Re01Year05",
-                                       Monitoring.Status=="Re01Year01" ~ "Re01Year01",
-                                       Monitoring.Status=="Re02Year01" ~ "Re02Year01")) %>%
-  mutate(FireHistory = case_when(FireHistory=="Castle" ~ "Castle",
-                                 FireHistory=="CoffeePot" ~ "CoffeePot",
-                                 FireHistory=="Castle+CoffeePot"~"Castle and CoffeePot"))
-
-
-
-#Bar Plot showing the abundance of Shrubs across time colored by Species and faceted by treatment
-
-#make sure year is numeric
-CEBE_summarybyspeciesandstatus$Year <- as.numeric(CEBE_summarybyspeciesandstatus$Year)
-
+# Let's look at all the shrub species separated by status (living and dead)
 ggplot(CEBE_summarybyspeciesandstatus[CEBE_summarybyspeciesandstatus$Prf..Lifeform=="Shrub", ], aes(x=FireHistory, y=perc_of_hits, fill=Status)) + 
   geom_boxplot() + 
   facet_wrap(~Species.Symbol) +
@@ -629,7 +215,7 @@ ggplot(CEBE_summarybyspeciesandstatus[CEBE_summarybyspeciesandstatus$Prf..Lifefo
 
 #ggsave(paste0(path_figures, "CEBE_ShrubAbundance_bySpeciesandStatus_BoxPlot.png"), width = 11, height=9, limitsize=FALSE)
 
-#Let's just look at CEBE (mountain mahogany occurence)- the most common shrub and found in all 3 fire histories
+#Now let's look only at CEBE by separate the living and the dead
 ggplot(CEBE_summarybyspeciesandstatus[CEBE_summarybyspeciesandstatus$Species.Symbol=="CEBE1", ], aes(x=FireHistory, y=perc_of_hits, fill=Status)) +
   geom_boxplot() + 
   theme_bw() +
@@ -641,8 +227,37 @@ ggplot(CEBE_summarybyspeciesandstatus[CEBE_summarybyspeciesandstatus$Species.Sym
 #ggsave(paste0(path_figures, "CEBE_CEBEAbundancebyStatus_BoxPlot.png"), width = 8, height=6, limitsize=FALSE)
 ```
 
+### All land cover types - shrubs, graminoid, undefined, etc.
+#### CEBE
+```{r}
+a <- ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$FireHistory=="Castle", ], aes(x=MacroPlot.Name, y=perc_of_hits, fill=Prf..Lifeform), fill=Prf..Lifeform) +
+  geom_col(position = "fill") + 
+  facet_wrap(~FireHistory) +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=14), axis.title.x=element_text(size=20), axis.title.y=element_text(size=20),legend.title=element_text(size=20), legend.text=element_text(size=14), strip.text = element_text(size = 14), legend.position = "none") +
+  labs(y="% Cover", fill="Cover Class") +
+  scale_fill_manual(values=c("Forb/herb"="#774762FF", "Graminoid"="#BA6E1DFF", "Shrub"="#D6BB3BFF", "Tree"="#755028FF", "Undefined"="#585854FF", "Vine"="#205F4BFF"))
+
+b <- ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$FireHistory=="Castle+CoffeePot", ], aes(x=MacroPlot.Name, y=perc_of_hits, fill=Prf..Lifeform), fill=Prf..Lifeform) +
+  geom_col(position = "fill") + 
+  facet_wrap(~FireHistory) +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=14), axis.title.x=element_text(size=20), axis.title.y=element_text(size=20),legend.title=element_text(size=20), legend.text=element_text(size=14), strip.text = element_text(size = 14), legend.position = "none") +
+  labs(y="% Cover", fill="Cover Class") +
+  scale_fill_manual(values=c("Forb/herb"="#774762FF", "Graminoid"="#BA6E1DFF", "Shrub"="#D6BB3BFF", "Tree"="#755028FF", "Undefined"="#585854FF", "Vine"="#205F4BFF"))
+
+c <- ggplot(CEBE_summarybylifeform[CEBE_summarybylifeform$FireHistory=="CoffeePot", ], aes(x=MacroPlot.Name, y=perc_of_hits, fill=Prf..Lifeform), fill=Prf..Lifeform) +
+  geom_col(position = "fill") + 
+  facet_wrap(~FireHistory) +
+  theme(axis.text.x=element_text(angle=45, vjust = 1, hjust=1, size=14), axis.title.x=element_text(size=20), axis.title.y=element_text(size=20),legend.title=element_text(size=20), legend.text=element_text(size=14), strip.text = element_text(size = 14), legend.position = "none") +
+  labs(y="% Cover", fill="Cover Class") +
+  scale_fill_manual(values=c("Forb/herb"="#774762FF", "Graminoid"="#BA6E1DFF", "Shrub"="#D6BB3BFF", "Tree"="#755028FF", "Undefined"="#585854FF", "Vine"="#205F4BFF"))
+
+a + b + c
+#ggsave(paste0(path_figures, "CEBE_LifeformAbundancebyPlotandFireHistory.png"), width = 8, height=6, limitsize=FALSE)
+
+```
+
 ### Height of Shrubs colored by living or dead by fire history
 ```{r}
-
+#if we want to make barplots 
 ```
 
